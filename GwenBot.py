@@ -8,20 +8,38 @@ from bs4 import BeautifulSoup
 
 client = commands.Bot(command_prefix='+')
 
-
+def GwenSubRefresh():
+    with open('GwenUsers.txt','r+') as f:
+        global GwenSub
+        GwenSub = []
+        for line in f:
+            GwenSub.append(line.strip().split('\n'))
+            
+def blacklistRefresh():
+    with open('blacklist.txt','r+') as f:
+        global blacklist
+        blacklist = []
+        for line in f:
+            blacklist.append(line.strip().split('\n'))
+            
+GwenSubRefresh()
+blacklistRefresh()
+    
 @client.event
 async def on_ready():
   print('Bot enabled')
 
-
 @client.listen('on_message')
 async def on_message(msg):
-  if msg.author == client.user:
-    return
-  if 'gwen' in msg.content.lower():
-    await msg.channel.send("Gwen is immune.")
-
-
+    global GwenSub
+    GwenSubRefresh()
+    if '+' not in msg.content:
+        if any(str(msg.author.id) in sublist for sublist in GwenSub) and not any(str(msg.author.id) in sublist for sublist in blacklist):
+            if msg.author == client.user:
+                return
+            if 'gwen' in msg.content.lower():
+                await msg.channel.send('Gwen is immune.')
+    
 response = requests.get("https://ddragon.leagueoflegends.com/cdn/12.1.1/data/en_US/champion.json")
 champJson = str(json.loads(response.text))
 eloList = ['All', 'Challenger', 'Master', 'Grandmaster', 'Diamond', 'Gold', 'Silver','Iron', 'Bronze', 'Diamond2Plus', 'MasterPlus', 'DiamondPlus', 'PlatinumPlus', 'Platinum']
@@ -67,7 +85,7 @@ async def wr(ctx, champ, elo=""):
         name, wR, elo)
       await ctx.send(res)
     else:
-      await ctx.send("Invalid champion, check '+list' for a list of all acceptable IDs.")
+        await ctx.send("Invalid champion, check '+list' for a list of all acceptable IDs.")
   elif elo == "":
     if champ in allChamp:
       champ = champ.lower()
@@ -118,7 +136,7 @@ async def elolist(ctx):
   await user.send(eloList)
 
 
-@client.command()
+@client.command(aliases=['Evasion'])
 async def evasion(ctx):
   evas = "Active: Jax enters Evasion, a defensive stance, for up to 2 seconds, causing all basic attacks against him to miss. Jax also takes 25% reduced damage from all champion area of effect abilities. After 1 second, Jax can reactivate to end it immediately."
   await ctx.send(evas)
@@ -130,39 +148,95 @@ async def g(ctx):
   await ctx.send(gwen)
 
 
-@client.command()
+@client.command(aliases=['Aatrox'])
 async def aatrox(ctx):
   aatrox = "Aatrox got ignited."
   await ctx.send(aatrox)
 
+@client.command(aliases=['lh','Lh','LH'])
+async def listenhere(ctx):
+    listen = "Listen here you little shit"
+    await ctx.send(listen)
 
-@client.command()
+@client.command(aliases=['Emo'])
 async def emo(ctx):
-  emo = "Aatrox's biggest fan (owns an aatrox tshirt)"
+  emo = "Aatrox's biggest fan (owns an Aatrox tshirt)"
   await ctx.send(emo)
 
+@client.command(aliases=['gwenadd','Gwenadd','gwensub'])
+async def GwenAdd(ctx):
+    user = ctx.author.id
+    with open('GwenUsers.txt','a') as f:
+        f.write(f'\n{user}')
+    GwenSubRefresh()
+    await ctx.send('User added to GwenBot Subscription.')
 
-@client.command()
+@client.command(aliases=['gwenremove','subremove'])
+async def remove(ctx):
+    user = str(ctx.author.id)
+    with open('GwenUsers.txt','r') as f:
+        lines = f.readlines()
+    with open('GwenUsers.txt','w') as f:
+        for line in lines:
+            if line.strip('\n') != user:
+                f.write(line)
+    GwenSubRefresh()
+    await ctx.send('User removed from GwenBot Subscription.')
+
+@client.command(pass_context=True)
+@commands.has_permissions(kick_members=True)
+async def blpass(ctx, id):
+    with open('blacklist.txt','a') as f:
+        f.write(f'\n{str(id)}')
+    blacklistRefresh()
+    await ctx.send('User added to blacklist.')
+
+@client.command(pass_context=True)
+@commands.has_permissions(kick_members=True)
+async def blpassremove(ctx, id):
+    with open('blacklist.txt','r') as f:
+        lines = f.readlines()
+    with open('blacklist.txt','w') as f:
+        for line in lines:
+            if line.strip('\n') != str(id):
+                f.write(line)
+    blacklistRefresh()
+    await ctx.send('User removed from blacklist.')
+    
+@client.command(aliases=['george','George','Sylas'])
+async def sylas(ctx):
+    sylas = 'Sylas pressed W.'
+    await ctx.send(sylas)
+
+@client.command(aliases=['Menu'])
 async def menu(ctx):
   _help = """
-  +winrate (champion, elo) - gives the winrate of the named champion. If no elo is given, the bot will return the overall winrate across all elos. If an elo was given, the bot gives the best performing build for that elo.
+  +winrate (champion, elo) - Gives the winrate of the named champion. If no elo is given, the bot will return the overall winrate across all elos. If an elo was given, the bot gives the best performing build for that elo.
 
-  +wr (champion, elo) - alternative to winrate.
+  +wr (champion, elo) - Alternative to winrate.
 
-  +wr (r/random, elo) - gives the winrate of a random champion. Same arguments as for the normal winrate command.
+  +wr (r/random, elo) - Gives the winrate of a random champion. Same arguments as for the normal winrate command.
+  
+  +gwenadd (+gwensub) - Adds you to the list of Gwen auto replies. If you type gwen anywhere in your message, the bot will reply with 'Gwen is immune.'.
+  
+  +remove - Removes you from the list of Gwen auto replies.
 
-  +list - gives a list of acceptable champion names.
+  +list - Gives a list of acceptable champion names.
 
-  +elolist - gives a list of acceptable elos.
+  +elolist - Gives a list of acceptable elos.
 
-  +evasion - jax enters evasion
+  +evasion - Jax enters evasion
   
   +g (gwen, immune) - Gwen is immune.
   
+  +listenhere (lh) - Listen here you little shit
+  
   +aatrox - Aatrox got ignited.
   
-  +emo - beta male"""
+  +emo - beta male
+ 
+  +sylas - Sylas pressed W."""
   user = ctx.message.author
   await user.send(_help)
 
-client.run(#Insert your Token Here)
+client.run(discord token)
