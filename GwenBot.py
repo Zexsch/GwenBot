@@ -8,15 +8,15 @@ from bs4 import BeautifulSoup
 
 client = commands.Bot(command_prefix='+')
 
-def GwenSubRefresh():
-    with open('GwenUsers.txt','r+') as f:
+def GwenSubRefresh(): # Refreshes the list of all people that have subscribed to gwenbot
+    with open('GwenUsers.txt','r+') as f: # You NEED to have a file called GwenUsers.txt in the same directory
         global GwenSub
         GwenSub = []
         for line in f:
             GwenSub.append(line.strip().split('\n'))
             
-def blacklistRefresh():
-    with open('blacklist.txt','r+') as f:
+def blacklistRefresh(): # refreshes the blacklist
+    with open('blacklist.txt','r+') as f: # You NEED to have a file called blacklist.txt in the same directory
         global blacklist
         blacklist = []
         for line in f:
@@ -27,27 +27,39 @@ blacklistRefresh()
     
 @client.event
 async def on_ready():
-  print('Bot enabled')
+    print('Bot enabled')
 
 @client.listen('on_message')
 async def on_message(msg):
     global GwenSub
+    global blacklist
     GwenSubRefresh()
     if '+' not in msg.content:
         if any(str(msg.author.id) in sublist for sublist in GwenSub) and not any(str(msg.author.id) in sublist for sublist in blacklist):
             if msg.author == client.user:
                 return
             if 'gwen' in msg.content.lower():
-                await msg.channel.send('Gwen is immune.')
+                await msg.channel.send('Gwen is immune.') # Can easily be done in a more efficient way by switching if statements but I cba it runs fine
+    if msg.author.id == 252498411511742464:  # My ID, this allows me to communicate through the bot
+        if 'sendshit' in msg.content:
+            res = msg.content
+            res = res.replace('sendshit','')
+            channel = client.get_channel(410517986256879618)
+            if "$" in msg.content:
+                split = res.split("$",1)
+                channel = client.get_channel(int(split[1]))
+                res = split[0]
+                res = res.replace("$",'')
+            await channel.send(res)
     
-response = requests.get("https://ddragon.leagueoflegends.com/cdn/12.1.1/data/en_US/champion.json")
+response = requests.get("https://ddragon.leagueoflegends.com/cdn/12.11.1/data/en_US/champion.json")
 champJson = str(json.loads(response.text))
 eloList = ['All', 'Challenger', 'Master', 'Grandmaster', 'Diamond', 'Gold', 'Silver','Iron', 'Bronze', 'Diamond2Plus', 'MasterPlus', 'DiamondPlus', 'PlatinumPlus', 'Platinum']
 
 
 @client.command(aliases=['winrate'])
 async def wr(ctx, champ, elo=""):
-  # finall champion names
+  # findall champion names
   allChamp = re.findall(r"(?<='id':\s')[^']*", champJson)
   champ = champ[0].upper() + champ[1:]
   if elo != "":
@@ -163,35 +175,50 @@ async def emo(ctx):
   emo = "Aatrox's biggest fan (owns an Aatrox tshirt)"
   await ctx.send(emo)
 
-@client.command(aliases=['gwenadd','Gwenadd','gwensub'])
+@client.command(aliases=['gwenadd','Gwenadd','gwensub']) # Adds the user to the list of all subscribed users
 async def GwenAdd(ctx):
     user = ctx.author.id
-    with open('GwenUsers.txt','a') as f:
-        f.write(f'\n{user}')
-    GwenSubRefresh()
-    await ctx.send('User added to GwenBot Subscription.')
+    if not any(str(user) in sublist for sublist in GwenSub):
+        with open('GwenUsers.txt','a') as f:
+            f.write(f'\n{user}')
+        GwenSubRefresh()
+        await ctx.send('User added to GwenBot Subscription.')
+    else:
+        await ctx.send('You are already subscribed to GwenBot.')
 
-@client.command(aliases=['gwenremove','subremove'])
+
+@client.command(aliases=['gwenremove','subremove']) # Removes the user from the sublist
 async def remove(ctx):
     user = str(ctx.author.id)
-    with open('GwenUsers.txt','r') as f:
-        lines = f.readlines()
-    with open('GwenUsers.txt','w') as f:
-        for line in lines:
-            if line.strip('\n') != user:
-                f.write(line)
-    GwenSubRefresh()
-    await ctx.send('User removed from GwenBot Subscription.')
-
-@client.command(pass_context=True)
-@commands.has_permissions(kick_members=True)
-async def blpass(ctx, id):
+    if not any(str(user) in sublist for sublist in GwenSub):
+        await ctx.send('You are not subscribed to GwenBot.')
+    else:
+        with open('GwenUsers.txt','r') as f:
+            lines = f.readlines()
+        with open('GwenUsers.txt','w') as f:
+            for line in lines:
+                if line.strip('\n') != user:
+                    f.write(line)
+        GwenSubRefresh()
+        await ctx.send('User removed from GwenBot Subscription.')
+        
+@client.command(aliases=['bl','blacklist']) 
+@commands.has_permissions(kick_members=True) # Makes it so that anyone with kick perms can add users to the blacklist
+async def blpass(ctx, id): # This bot is supposed to be used on a single server, if you'd want to copy it, make it create a new file for each server
     with open('blacklist.txt','a') as f:
         f.write(f'\n{str(id)}')
     blacklistRefresh()
     await ctx.send('User added to blacklist.')
+    
+@client.command()
+async def fuckyou(ctx, id):
+    if ctx.author.id == 252498411511742464: # my discord ID lmao, just allows me to add a user to the blacklist whenever I want
+    	with open('blacklist.txt','a') as f:
+        	f.write(f'\n{str(id)}')
+    	blacklistRefresh()
+    	await ctx.send('User added to blacklist.')
 
-@client.command(pass_context=True)
+@client.command(aliases=['blremove','blr','blacklistremove']) # Removes a user from the blacklist
 @commands.has_permissions(kick_members=True)
 async def blpassremove(ctx, id):
     with open('blacklist.txt','r') as f:
@@ -208,7 +235,7 @@ async def sylas(ctx):
     sylas = 'Sylas pressed W.'
     await ctx.send(sylas)
 
-@client.command(aliases=['Menu'])
+@client.command(aliases=['Menu']) # Need to update this, it's shit
 async def menu(ctx):
   _help = """
   +winrate (champion, elo) - Gives the winrate of the named champion. If no elo is given, the bot will return the overall winrate across all elos. If an elo was given, the bot gives the best performing build for that elo.
@@ -239,4 +266,16 @@ async def menu(ctx):
   user = ctx.message.author
   await user.send(_help)
 
-client.run(discord token)
+@client.command() # Manual shutdown as a command
+async def shutdown(ctx):
+    if ctx.message.author.id == 252498411511742464: 
+        print("shutdown")
+        try:
+            await ctx.client.close()
+        except:
+            print("EnvironmentError")
+            client.clear()
+    else:
+        await ctx.send("You do not own this bot!")
+
+client.run(TOKEN)
