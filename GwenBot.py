@@ -57,8 +57,8 @@ champJson = str(json.loads(response.text))
 eloList = ['All', 'Challenger', 'Master', 'Grandmaster', 'Diamond', 'Gold', 'Silver','Iron', 'Bronze', 'Diamond2Plus', 'MasterPlus', 'DiamondPlus', 'PlatinumPlus', 'Platinum']
 
 
-@client.command(aliases=['winrate'])
-async def wr(ctx, champ, elo=""):
+@client.command(aliases=['winrate']) # The spacing here is really fucked, that's cause the server I'm hosting it on is really fucking weird with indentation
+async def wr(ctx, champ, elo=""): # So you might need to fix this
   # findall champion names
   allChamp = re.findall(r"(?<='id':\s')[^']*", champJson)
   champ = champ[0].upper() + champ[1:]
