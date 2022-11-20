@@ -7,6 +7,7 @@ from requests import get as getreq
 from requests.exceptions import RequestException
 from json import loads as loadsjson
 from random import randint
+from typing import List
 # from re import findall
 
 # from .Database.database import Database
@@ -33,14 +34,14 @@ class Bot(commands.Bot, Database):
         
         self.response = getreq(f"https://ddragon.leagueoflegends.com/cdn/{LOL_VERSION}/data/en_US/champion.json")
         self.champion_json: str = str(loadsjson(self.response.text))
-        self.elo_list: list[str] = ['All', 'Challenger', 'Master', 'Grandmaster', 'Diamond', 'Platinum',  
+        self.elo_list: List[str] = ['All', 'Challenger', 'Master', 'Grandmaster', 'Diamond', 'Platinum',  
                                     'Gold', 'Silver', 'Bronze', 'Iron', 'Diamond_2_plus', 'Master_plus', 
                                     'Diamond_plus', 'Platinum_plus']
         
         #  Regex version, not recommended
         #  self._all_champions: list[str] = findall(r"(?<='id':\s')[^']*", self.champion_json)
         #  self.all_champions: list[str] = [i.capitalize() for i in self._all_champions]    
-        self.all_champions: list[str] = [i.capitalize() for i in self.champion_json['data']]
+        self.all_champions: List[str] = [i.capitalize() for i in self.champion_json['data']]
         
         log.basicConfig(filename='bot_log.log', encoding='utf-8', level=log.DEBUG,
                         format='%(levelname)s : %(asctime)s : %(message)s', datefmt='%y/%m/%d %H:%M:%S')
