@@ -10,10 +10,9 @@ from random import randint
 # from re import findall
 
 # from .Database.database import Database
-# from .helpmsg import (helpmsg, wrhelpmsg)
 # from .Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX)
 from Database.database import Database
-from helpmsg import (helpmsg, wrhelpmsg)
+from .helpmsg import (helpmsg, wrhelpmsg)
 from Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX)
 
 class Bot(commands.Bot, Database):
@@ -33,9 +32,9 @@ class Bot(commands.Bot, Database):
         
         self.response = getreq(f"https://ddragon.leagueoflegends.com/cdn/{LOL_VERSION}/data/en_US/champion.json")
         self.champion_json: dict[str, str] = loadsjson(self.response.text)
-        self.elo_list: list[str] = ['All', 'Challenger', 'Master', 'Grandmaster', 'Diamond', 'Platinum',  
-                                    'Gold', 'Silver', 'Bronze', 'Iron', 'Diamond_2_plus', 'Master_plus', 
-                                    'Diamond_plus', 'Platinum_plus']
+        self.elo_list: list[str] = ['overall', 'challenger', 'master', 'grandmaster', 'diamond', 'platinum',  
+                                    'gold', 'silver', 'bronze', 'iron', 'diamond_2_plus', 'master_plus', 
+                                    'diamond_plus', 'platinum_plus']
         
         #  Regex version, not recommended
         #  self._all_champions: List[str] = findall(r"(?<='id':\s')[^']*", self.champion_json)
@@ -81,7 +80,7 @@ class Bot(commands.Bot, Database):
         try:
             win_rate: str = soup.find_all('div', {'class':'value'})[1].text
         except IndexError:
-            self.logger.error('Index out of range error. Most likely due to high traffic.')
+            self.logger.error(f'Index out of range error in +wr elo. champ={champ}, elo={elo}, url={url}')
             return
         
         if not win_rate:
@@ -132,6 +131,9 @@ class Bot(commands.Bot, Database):
             if PREFIX in msg.content:
                 return
             
+            if msg.guild is None:
+                return
+            
             """Make the bot reply to any message containing 'Gwen' in any way. Opt-in via +gwenadd."""
             if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
                 return
@@ -140,12 +142,13 @@ class Bot(commands.Bot, Database):
                 ran_num: int = randint(0,99)
                 if ran_num == 1:
                     await msg.channel.send('Gwen is... not immune?')
-                    #  print(ran_num)
+                    return
                 else:
                     await msg.channel.send('Gwen is immune.')
-                    #  print(ran_num)
+                    return
             elif 'gw3n' in msg.content.lower():
                 await msg.channel.send('Gwen is immune. You cannot escape.')
+                return
             
             """Make the bot send any message. Only usable by bot owner.
             sendshit (message)$(channel id)[optional]
@@ -162,6 +165,7 @@ class Bot(commands.Bot, Database):
                     res = res.replace("$",'')
                 
                 await channel.send(res)
+                return
         
         #
         #  WINRATE COMMANDS
@@ -178,7 +182,7 @@ class Bot(commands.Bot, Database):
             champ: str = champ.capitalize()
             
             if elo != '':
-                elo = elo.capitalize()
+                elo = elo.lower()
             
             if elo != '' and elo not in self.elo_list:
                 await ctx.send('Invalid elo. Check +elolist for a list of all accepted elos.')
@@ -243,6 +247,10 @@ class Bot(commands.Bot, Database):
         async def gwen_add(ctx: commands.Context):
             """Command to add user to the subscribed database"""
             
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
             if self.fetch_blacklist(ctx.author.id, ctx.guild.id):
                 await ctx.send('You are blacklisted from using this function.')
                 return
@@ -259,6 +267,10 @@ class Bot(commands.Bot, Database):
         async def gwen_remove(ctx: commands.Context) -> None:
             """Command to remove user from the subscribed database"""
             
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
             if self.fetch_gwen_sub(ctx.author.id, ctx.guild.id):
                 self.remove_from_gwen_sub(ctx.author.id, ctx.guild.id)
                 await ctx.send('Successfully removed from the GwenBot Subscription.')
@@ -270,6 +282,9 @@ class Bot(commands.Bot, Database):
         @self.command(name='checkgs', pass_context=True, aliases=['checksub'])
         async def checkgs(ctx: commands.Context, id=None) -> None:
             """Command to check if a user is subbed. +checkgs id[optional]"""
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
             
             if id == None:
                 if self.fetch_gwen_sub(ctx.author.id, ctx.guild.id):
@@ -294,6 +309,10 @@ class Bot(commands.Bot, Database):
             """Command to forcefully remove a user from the GwenBot subscription.
             Usable only by users with kick_members permissions."""
             
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
             try: 
                 id = int(id)
             except ValueError:
@@ -305,12 +324,17 @@ class Bot(commands.Bot, Database):
                 return
             
             self.remove_from_gwen_sub(id, ctx.guild.id)
+            self.logger.info(f'User {id} Server {ctx.guild.id} removed from GwenBot subscription by {ctx.author.id}.')
             await ctx.send('User removed from GwenBot subscription.')
         
         @self.command(name='blacklist', pass_context=True, aliases=['bl', 'Bl', 'BL'])
         @commands.has_permissions(kick_members=True)
         async def blacklist(ctx: commands.Context, id) -> None:
             """Command to add a user to the blacklist. Requires the user to have kick_members permissions."""
+            
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
             
             try:
                 id = int(id)
@@ -332,6 +356,10 @@ class Bot(commands.Bot, Database):
         async def blremove(ctx: commands.Context, id) -> None:
             """Command to remove a user from the blacklist. Requires the user to have kick_members permissions."""
             
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
             try:
                 id = int(id)
             except ValueError:
@@ -349,6 +377,10 @@ class Bot(commands.Bot, Database):
         @self.command(name='checkbl', pass_context=True, aliases=['check', 'checkblacklist'])
         async def checkbl(ctx: commands.Context, id=None) -> None:
             """Command to check if a user is blacklisted. +checkbl id[optional]"""
+            
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
             
             if id == None:
                 if self.fetch_blacklist(ctx.author.id, ctx.guild.id):
@@ -390,6 +422,10 @@ class Bot(commands.Bot, Database):
             """Alternative to +blacklist. Instead of permissions this requires the sender to be the owner of the bot.
             Change OWNER_ID in Config.config to your ID."""
             
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
             if not ctx.author.id == OWNER_ID:  # Change the id to your own.
                 await ctx.send('Who do you think you are...')
                 return
@@ -415,6 +451,10 @@ class Bot(commands.Bot, Database):
             """Alternative to +blremove. Instead of permissions this requires the sender to be the owner of the bot.
             Change OWNER_ID in Config.config to your ID."""
             
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
             if not ctx.author.id == OWNER_ID:
                 await ctx.send('Who do you think you are...')
                 return
@@ -438,6 +478,11 @@ class Bot(commands.Bot, Database):
         @self.command(pass_context=True)
         async def fuckyouremove(ctx: commands.Context, id) -> None:
             """Removes a person from GwenSubs. Only usable by Owner."""
+            
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
             if not ctx.author.id == OWNER_ID:
                 await ctx.send('Who do you think you are...')
                 return
@@ -473,12 +518,12 @@ class Bot(commands.Bot, Database):
         @self.command(pass_context=True)
         async def list(ctx: commands.Context):
             user: discord.Member = ctx.message.author
-            await user.send(*self.all_champions)
+            await user.send(', '.join(map(str,self.all_champions)))
         
         @self.command(pass_context=True)
         async def elolist(ctx: commands.Context):
             user: discord.Member = ctx.message.author
-            await user.send(*self.elo_list)
+            await user.send(', '.join(map(str,self.elo_list)))
         
         #  Structure commands that send in the current chat like this and change the message.
         @self.command(aliases=['Evasion', 'jax'])
