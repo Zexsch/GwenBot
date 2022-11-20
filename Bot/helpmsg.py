@@ -18,7 +18,7 @@ Fun commands:
 +emo
 +sylas (george)
 
-GwenBot is open source, you can find all code on https://github.com/Zexsch/GwenBot
+GwenBot is open source, you can find all code on <https://github.com/Zexsch/GwenBot>
 """
 
 wrhelpmsg = """
