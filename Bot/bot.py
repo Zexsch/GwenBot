@@ -1,5 +1,5 @@
 import discord
-import logging as log
+import logging
 
 from discord.ext import commands
 from bs4 import BeautifulSoup
@@ -38,19 +38,29 @@ class Bot(commands.Bot, Database):
                                     'Diamond_plus', 'Platinum_plus']
         
         #  Regex version, not recommended
-        #  self._all_champions: list[str] = findall(r"(?<='id':\s')[^']*", self.champion_json)
-        #  self.all_champions: list[str] = [i.capitalize() for i in self._all_champions]    
+        #  self._all_champions: List[str] = findall(r"(?<='id':\s')[^']*", self.champion_json)
+        #  self.all_champions: List[str] = [i.capitalize() for i in self._all_champions]    
         self.all_champions: list[str] = [i.capitalize() for i in self.champion_json['data']]
         
-        log.basicConfig(filename='bot_log.log', encoding='utf-8', level=log.DEBUG,
-                        format='%(levelname)s : %(asctime)s : %(message)s', datefmt='%y/%m/%d %H:%M:%S')
+        
+        # logger config
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+        
+        formatter = logging.Formatter('%(levelname)s : %(asctime)s : %(message)s', datefmt='%y/%m/%d %H:%M:%S')
+        
+        file_handler = logging.FileHandler('bot_log.log')
+        file_handler.setFormatter(formatter)
+        
+        self.logger.addHandler(file_handler)
+        
         
         self.create_db()
         
         self.add_commands()
     
     async def on_ready(self) -> None:
-        log.info('Bot enabled.')
+        self.logger.info('Bot enabled.')
     
     def fetch_wr_with_elo(self, champ: str, elo: str) -> float | None:
         r"""Return the winrate of a champion in a specified elo. Return :class:`None` if website is not reachable."""
@@ -63,20 +73,25 @@ class Bot(commands.Bot, Database):
         try:
             web = getreq(url).content
         except RequestException:
-            log.error('Bot encountered an error when scraping u.gg.')
+            self.logger.error('Bot encountered an error when scraping u.gg.')
             return
         
         soup = BeautifulSoup(web, "html.parser")
-        win_rate: str = soup.find_all('div', {'class':'value'})[1].text
+        
+        try:
+            win_rate: str = soup.find_all('div', {'class':'value'})[1].text
+        except IndexError:
+            self.logger.error('Index out of range error. Most likely due to high traffic.')
+            return
         
         if not win_rate:
-            log.error("Winrate wasn't found.")
+            self.logger.error("Winrate wasn't found.")
             return
         
         try:
             win_rate = float(win_rate.rstrip(win_rate[-1]))
         except ValueError:
-            log.error('Winrate fetched was not a float.')
+            self.logger.error('Winrate fetched was not a float.')
             return
         
         return win_rate
@@ -89,20 +104,20 @@ class Bot(commands.Bot, Database):
         try:
             web = getreq(url).content
         except RequestException:
-            log.error('Bot encountered an error when scraping u.gg.')
+            self.logger.error('Bot encountered an error when scraping u.gg.')
             return
         
         soup = BeautifulSoup(web, "html.parser")
         win_rate: str = soup.find_all('div', {'class':'value'})[1].text
         
         if not win_rate:
-            log.error("Winrate wasn't found.")
+            self.logger.error("Winrate wasn't found.")
             return
         
         try:
             win_rate = float(win_rate.rstrip(win_rate[-1]))
         except ValueError:
-            log.error('Winrate fetched was not a float.')
+            self.logger.error('Winrate fetched was not a float.')
             return
         
         return win_rate
@@ -176,6 +191,7 @@ class Bot(commands.Bot, Database):
             #  If elo is given
             if elo != '' and champ in self.all_champions:
                 win_rate: float | None = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
@@ -235,7 +251,7 @@ class Bot(commands.Bot, Database):
                 self.add_to_gwen_sub(ctx.author.id, ctx.guild.id)
                 await ctx.send('Successfully subscribed to GwenBot.')
                 
-                log.info(f'User {ctx.author.id} Server {ctx.guild.id} added to GwenBot subscription.')
+                self.logger.info(f'User {ctx.author.id} Server {ctx.guild.id} added to GwenBot subscription.')
             else:
                 await ctx.send('You are already subscribed to GwenBot.')
         
@@ -247,7 +263,7 @@ class Bot(commands.Bot, Database):
                 self.remove_from_gwen_sub(ctx.author.id, ctx.guild.id)
                 await ctx.send('Successfully removed from the GwenBot Subscription.')
                 
-                log.info(f'User {ctx.author.id} Server {ctx.guild.id} removed from GwenBot subscription.')
+                self.logger.info(f'User {ctx.author.id} Server {ctx.guild.id} removed from GwenBot subscription.')
             else:
                 await ctx.send('You are not currently subscribed to GwenBot.', ephemeral=True)
         
@@ -307,7 +323,7 @@ class Bot(commands.Bot, Database):
                 self.remove_from_gwen_sub(id, ctx.guild.id)
                 await ctx.send('User successfully added to the Blacklist.')
                 
-                log.info(f'User {id} Server {ctx.guild.id} added to Blacklist by {ctx.author.id}.')
+                self.logger.info(f'User {id} Server {ctx.guild.id} added to Blacklist by {ctx.author.id}.')
             else:
                 await ctx.send('User is already in blacklist.')
         
@@ -326,7 +342,7 @@ class Bot(commands.Bot, Database):
                 self.remove_from_blacklist(id, ctx.guild.id)
                 await ctx.send('User successfully removed from the Blacklist.')
                 
-                log.info(f'User {id} Server {ctx.guild.id} removed from Blacklist by {ctx.author.id}.')
+                self.logger.info(f'User {id} Server {ctx.guild.id} removed from Blacklist by {ctx.author.id}.')
             else:
                 await ctx.send('User is not Blacklisted.')
         
@@ -391,7 +407,7 @@ class Bot(commands.Bot, Database):
             self.add_to_blacklist(id, ctx.guild.id)
             await ctx.send('User added to the Blacklist.')
             
-            log.info(f'User {id} Server {ctx.guild.id} added to Blacklist by Owner.')
+            self.logger.info(f'User {id} Server {ctx.guild.id} added to Blacklist by Owner.')
             
         
         @self.command(pass_context=True)
@@ -416,7 +432,7 @@ class Bot(commands.Bot, Database):
             self.remove_from_blacklist(id, ctx.guild.id)
             await ctx.send('User removed from the Blacklist.')
             
-            log.info(f'User {id} Server {ctx.guild.id} removed from Blacklist by Owner.')
+            self.logger.info(f'User {id} Server {ctx.guild.id} removed from Blacklist by Owner.')
 
 
         @self.command(pass_context=True)
@@ -447,7 +463,7 @@ class Bot(commands.Bot, Database):
                 await ctx.send('Who do you think you are...')
                 return
             
-            log.critical('Bot was forcefully shut down.')
+            self.logger.critical('Bot was forcefully shut down.')
             print('Bot forcefully shut down.')
             
 
