@@ -134,22 +134,6 @@ class Bot(commands.Bot, Database):
             if msg.guild is None:
                 return
             
-            """Make the bot reply to any message containing 'Gwen' in any way. Opt-in via +gwenadd."""
-            if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
-                return
-
-            if 'gwen' in msg.content.lower():
-                ran_num: int = randint(0,99)
-                if ran_num == 1:
-                    await msg.channel.send('Gwen is... not immune?')
-                    return
-                else:
-                    await msg.channel.send('Gwen is immune.')
-                    return
-            elif 'gw3n' in msg.content.lower():
-                await msg.channel.send('Gwen is immune. You cannot escape.')
-                return
-            
             """Make the bot send any message. Only usable by bot owner.
             sendshit (message)$(channel id)[optional]
             Trigger on-message, not a command."""
@@ -165,6 +149,23 @@ class Bot(commands.Bot, Database):
                     res = res.replace("$",'')
                 
                 await channel.send(res)
+                return
+            
+            
+            """Make the bot reply to any message containing 'Gwen' in any way. Opt-in via +gwenadd."""
+            if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
+                return
+
+            if 'gwen' in msg.content.lower():
+                ran_num: int = randint(0,99)
+                if ran_num == 1:
+                    await msg.channel.send('Gwen is... not immune?')
+                    return
+                else:
+                    await msg.channel.send('Gwen is immune.')
+                    return
+            elif 'gw3n' in msg.content.lower():
+                await msg.channel.send('Gwen is immune. You cannot escape.')
                 return
         
         #
