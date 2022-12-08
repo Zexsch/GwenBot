@@ -442,6 +442,8 @@ class Bot(commands.Bot, Database):
                 return
             
             self.add_to_blacklist(id, ctx.guild.id)
+            self.remove_from_gwen_sub(id, ctx.guild.id)
+            
             await ctx.send('User added to the Blacklist.')
             
             self.logger.info(f'User {id} Server {ctx.guild.id} added to Blacklist by Owner.')
@@ -511,6 +513,8 @@ class Bot(commands.Bot, Database):
             
             self.logger.critical('Bot was forcefully shut down.')
             print('Bot forcefully shut down.')
+            
+            await ctx.bot.logout()
             
 
         #  All smaller/fun commands and any help-related command.
