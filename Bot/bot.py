@@ -28,13 +28,21 @@ class Bot(commands.Bot, Database):
         intents: discord.Intents = discord.Intents.default()
         intents.message_content = True
         
-        commands.Bot.__init__(self, command_prefix=PREFIX, intents=intents, help_command=None)
+        commands.Bot.__init__(self, command_prefix=PREFIX, intents=intents, help_command=None, owner_id=OWNER_ID)
         
         self.response = getreq(f"https://ddragon.leagueoflegends.com/cdn/{LOL_VERSION}/data/en_US/champion.json")
         self.champion_json: dict[str, str] = loadsjson(self.response.text)
         self.elo_list: list[str] = ['overall', 'challenger', 'master', 'grandmaster', 'diamond', 'platinum',  
                                     'gold', 'silver', 'bronze', 'iron', 'diamond_2_plus', 'master_plus', 
                                     'diamond_plus', 'platinum_plus']
+        
+        # Alternative names for the elos to use in +wr.
+        self.alternative_elos: dict[str, str] = {
+            'platinum': ['platplus', 'plat+', 'platinumplus'],
+            'diamond2': ['d2+', 'd2', 'd2plus', 'diamond2', 'diamond2plus', 'diamond2+', 'diamond_2plus', 'diamond_2+'],
+            'diamond': ['d+', 'dplus', 'diamondplus'],
+            'master': ['m+', 'master+', 'masterplus']
+        }
         
         #  Regex version, not recommended
         #  self._all_champions: List[str] = findall(r"(?<='id':\s')[^']*", self.champion_json)
@@ -61,6 +69,20 @@ class Bot(commands.Bot, Database):
     async def on_ready(self) -> None:
         self.logger.info('Bot enabled.')
     
+    def alternative_elo_names(self, elo: str) -> str:
+        if elo in self.alternative_elos.get('platinum'):
+            return 'platinum_plus'
+        
+        if elo in self.alternative_elos.get('diamond2'):
+            return 'diamond_2_plus'
+        
+        if elo in self.alternative_elos.get('diamond'): 
+            return 'diamond_plus'
+        
+        if elo in self.alternative_elos.get('master'):
+            return 'master_plus'
+        
+    
     def fetch_wr_with_elo(self, champ: str, elo: str) -> float | None:
         r"""Return the winrate of a champion in a specified elo. Return :class:`None` if website is not reachable."""
         
@@ -70,7 +92,7 @@ class Bot(commands.Bot, Database):
             url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}'
         
         try:
-            web = getreq(url).content
+            web = getreq(url, headers={'User-Agent': 'Mozilla/5.0'}).content
         except RequestException:
             self.logger.error('Bot encountered an error when scraping u.gg.')
             return
@@ -101,7 +123,7 @@ class Bot(commands.Bot, Database):
         url = f'https://u.gg/lol/champions/{champ}/build?rank=overall'
         
         try:
-            web = getreq(url).content
+            web = getreq(url, headers={'User-Agent': 'Mozilla/5.0'}).content
         except RequestException:
             self.logger.error('Bot encountered an error when scraping u.gg.')
             return
@@ -153,10 +175,9 @@ class Bot(commands.Bot, Database):
             
             
             """Make the bot reply to any message containing 'Gwen' in any way. Opt-in via +gwenadd."""
-            if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
-                return
-
             if 'gwen' in msg.content.lower():
+                if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
+                	return
                 ran_num: int = randint(0,99)
                 if ran_num == 1:
                     await msg.channel.send('Gwen is... not immune?')
@@ -165,6 +186,8 @@ class Bot(commands.Bot, Database):
                     await msg.channel.send('Gwen is immune.')
                     return
             elif 'gw3n' in msg.content.lower():
+                if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
+                	return
                 await msg.channel.send('Gwen is immune. You cannot escape.')
                 return
         
@@ -183,7 +206,7 @@ class Bot(commands.Bot, Database):
             champ: str = champ.capitalize()
             
             if elo != '':
-                elo = elo.lower()
+                elo = self.alternative_elo_names(elo.lower())
             
             if elo != '' and elo not in self.elo_list:
                 await ctx.send('Invalid elo. Check +elolist for a list of all accepted elos.')
@@ -419,16 +442,13 @@ class Bot(commands.Bot, Database):
         
         #  These 2 commands make it so that the owner of the bot can always add and remove users from the blacklist.
         @self.command(pass_context=True)
+        @commands.is_owner()
         async def fuckyou(ctx: commands.Context, id) -> None:
             """Alternative to +blacklist. Instead of permissions this requires the sender to be the owner of the bot.
             Change OWNER_ID in Config.config to your ID."""
             
             if ctx.guild is None:
                 await ctx.send('Command must be used in a server.')
-                return
-            
-            if not ctx.author.id == OWNER_ID:  # Change the id to your own.
-                await ctx.send('Who do you think you are...')
                 return
             
             try:
@@ -450,16 +470,13 @@ class Bot(commands.Bot, Database):
             
         
         @self.command(pass_context=True)
+        @commands.is_owner()
         async def unfuckyou(ctx: commands.Context, id) -> None:
             """Alternative to +blremove. Instead of permissions this requires the sender to be the owner of the bot.
             Change OWNER_ID in Config.config to your ID."""
             
             if ctx.guild is None:
                 await ctx.send('Command must be used in a server.')
-                return
-            
-            if not ctx.author.id == OWNER_ID:
-                await ctx.send('Who do you think you are...')
                 return
             
             try:
@@ -479,15 +496,12 @@ class Bot(commands.Bot, Database):
 
 
         @self.command(pass_context=True)
+        @commands.is_owner()
         async def fuckyouremove(ctx: commands.Context, id) -> None:
             """Removes a person from GwenSubs. Only usable by Owner."""
             
             if ctx.guild is None:
                 await ctx.send('Command must be used in a server.')
-                return
-            
-            if not ctx.author.id == OWNER_ID:
-                await ctx.send('Who do you think you are...')
                 return
             
             try:
@@ -504,17 +518,23 @@ class Bot(commands.Bot, Database):
             await ctx.send('User removed from GwenBot subscription.')
             
         
-        
         @self.command(pass_context=True)
+        @commands.is_owner()
         async def shutdown(ctx: commands.Context) -> None:
-            if not ctx.author.id == OWNER_ID:
-                await ctx.send('Who do you think you are...')
-                return
             
             self.logger.critical('Bot was forcefully shut down.')
             print('Bot forcefully shut down.')
             
-            await ctx.bot.logout()
+            await self.close()    
+              
+        
+        @unfuckyou.error
+        @fuckyou.error
+        @fuckyouremove.error
+        @shutdown.error
+        async def _not_owner(ctx: commands.Context, error: Exception) -> None:
+            if isinstance(error, commands.CheckFailure):
+                await ctx.send('Who do you think you are...')
             
 
         #  All smaller/fun commands and any help-related command.
@@ -537,6 +557,8 @@ class Bot(commands.Bot, Database):
         
         @self.command(aliases=['gwen', 'immune'])
         async def g(ctx: commands.Context):
+            if not self.fetch_gwen_sub(ctx.author.id, ctx.guild.id):
+                return
             await ctx.send('Gwen is immune.')
         
         @self.command(aliases=['Aatrox'])
