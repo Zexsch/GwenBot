@@ -72,15 +72,14 @@ class Bot(commands.Bot, Database):
     def alternative_elo_names(self, elo: str) -> str:
         if elo in self.alternative_elos.get('platinum'):
             return 'platinum_plus'
-        
-        if elo in self.alternative_elos.get('diamond2'):
+        elif elo in self.alternative_elos.get('diamond2'):
             return 'diamond_2_plus'
-        
-        if elo in self.alternative_elos.get('diamond'): 
+        elif elo in self.alternative_elos.get('diamond'): 
             return 'diamond_plus'
-        
-        if elo in self.alternative_elos.get('master'):
+        elif elo in self.alternative_elos.get('master'):
             return 'master_plus'
+        else:
+            return elo
         
     
     def fetch_wr_with_elo(self, champ: str, elo: str) -> float | None:
