@@ -69,17 +69,17 @@ class Bot(commands.Bot, Database):
     async def on_ready(self) -> None:
         self.logger.info('Bot enabled.')
     
-    def alternative_elo_names(self, elo: str) -> str:
+    def alternative_elo_names(self, elo: str) -> str|str:
         if elo in self.alternative_elos.get('platinum'):
-            return 'platinum_plus'
+            return ('platinum_plus', 'plat+')
         elif elo in self.alternative_elos.get('diamond2'):
-            return 'diamond_2_plus'
+            return ('diamond_2_plus', 'd2+')
         elif elo in self.alternative_elos.get('diamond'): 
-            return 'diamond_plus'
+            return ('diamond_plus', 'd+')
         elif elo in self.alternative_elos.get('master'):
-            return 'master_plus'
+            return ('master_plus', 'master+')
         else:
-            return elo
+            return (elo, elo)
         
     
     def fetch_wr_with_elo(self, champ: str, elo: str) -> float | None:
@@ -205,7 +205,8 @@ class Bot(commands.Bot, Database):
             champ: str = champ.capitalize()
             
             if elo != '':
-                elo = self.alternative_elo_names(elo.lower())
+                elo_tuple = self.alternative_elo_names(elo.lower())
+                elo = elo_tuple[0]
             
             if elo != '' and elo not in self.elo_list:
                 await ctx.send('Invalid elo. Check +elolist for a list of all accepted elos.')
@@ -223,7 +224,7 @@ class Bot(commands.Bot, Database):
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo}.')
+                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]}.')
                 return
             elif elo != '' and (champ == 'R' or champ == 'Random'):
                 
@@ -235,7 +236,7 @@ class Bot(commands.Bot, Database):
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo}.')
+                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]}.')
                 return
             
             #  If elo is not given
