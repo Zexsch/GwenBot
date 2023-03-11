@@ -114,7 +114,13 @@ class Bot(commands.Bot, Database):
             self.logger.error('Winrate fetched was not a float.')
             return
         
-        return win_rate
+        try:
+            match_count: str = soup.find_all('div', {'class':'value'})[5].text
+        except IndexError:
+            self.logger.error(f'Index out of range error in +wr elo match_count. champ={champ}, elo={elo}, url={url}')
+            return
+        
+        return (win_rate, match_count)
 
     def fetch_wr_without_elo(self, champ: str) -> float | None:
         r"""Return the winrate of a champion without a specified elo. Return :class:`None` if website is not reachable."""
@@ -140,7 +146,13 @@ class Bot(commands.Bot, Database):
             self.logger.error('Winrate fetched was not a float.')
             return
         
-        return win_rate
+        try:
+            match_count: str = soup.find_all('div', {'class':'value'})[5].text
+        except IndexError:
+            self.logger.error(f'Index out of range error in +wr elo match_count. champ={champ}, elo={elo}, url={url}')
+            return
+        
+        return (win_rate, match_count)
         
     def add_commands(self) -> None:
         """Add all discord events, commands and listeners in this."""
@@ -218,48 +230,53 @@ class Bot(commands.Bot, Database):
             
             #  If elo is given
             if elo != '' and champ in self.all_champions:
-                win_rate: float | None = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]}.')
+                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
                 return
             elif elo != '' and (champ == 'R' or champ == 'Random'):
                 
                 num: int = randint(0, len(self.all_champions)-1)
                 champ: str = self.all_champions[num]
-                win_rate: float | None = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                
+                info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]}.')
+                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
                 return
             
             #  If elo is not given
             if elo == '' and champ in self.all_champions:
-                win_rate: float | None = self.fetch_wr_without_elo(champ=champ)
+                info = self.fetch_wr_without_elo(champ=champ)
+                win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% overall winrate.')
+                await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
                 return
             elif elo == '' and (champ == 'R' or champ == 'Random'):
-                
                 num: int = randint(0, len(self.all_champions)-1)
                 champ: str = self.all_champions[num]
-                win_rate: float | None = self.fetch_wr_without_elo(champ=champ)
+                
+                info = self.fetch_wr_without_elo(champ=champ)
+                win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% overall winrate.')
+                await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
                 return
 
 
