@@ -32,7 +32,7 @@ class Bot(commands.Bot, Database):
         
         self.response = getreq(f"https://ddragon.leagueoflegends.com/cdn/{LOL_VERSION}/data/en_US/champion.json")
         self.champion_json: dict[str, str] = loadsjson(self.response.text)
-        self.elo_list: list[str] = ['overall', 'challenger', 'master', 'grandmaster', 'diamond', 'platinum', 'emerald',
+        self.elo_list: list[str] = ['overall', 'challenger', 'master', 'grandmaster', 'diamond', 'platinum', 'emerald',  
                                     'gold', 'silver', 'bronze', 'iron', 'diamond_2_plus', 'master_plus', 
                                     'diamond_plus', 'platinum_plus']
         
