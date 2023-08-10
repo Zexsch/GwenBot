@@ -8,6 +8,7 @@ All commands are case-sensitive.
 +gwenremove (remove, rem, removesub) | ()  -  Removes you from the autoreplies.
 +list () | ()  -  Gives a list of all accepted champions in DMs. Keep in mind that some champions have weird names officially...
 +elolist () | ()  -  Gives a list of all accepted elos in DMs.
++rolelist (roles) | ()
 +patch (version, checkver) | ()  -  Gives the current league patch that GwenBot uses. Any champ added after this patch will not work with GwenBot.
 
 Fun commands:
@@ -22,7 +23,10 @@ GwenBot is open source, you can find all code on <https://github.com/Zexsch/Gwen
 """
 
 wrhelpmsg = """
-+wr (winrate) | (champion, elo[optional])  -  Gives the winrate of the given champion in the given elo (if any).
-+wr (winrate) | (r / random, elo[optional])  -  Gives the winrate of a randomly selected champion in the given elo (if any).
++wr (winrate) | (champion)  -  Gives the winrate of the given champion.
++wr (winrate) | (r / random)  -  Gives the winrate of a randomly selected champion.
+Optional parameters:
+elo, role, opposing champ
+Example command usage: +wr vayne top d2+ aatrox
 Message @Zexsch#1884 if u.gg is not down and the commands do not work.
 """
