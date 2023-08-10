@@ -35,6 +35,7 @@ class Bot(commands.Bot, Database):
         self.elo_list: list[str] = ['overall', 'challenger', 'master', 'grandmaster', 'diamond', 'platinum', 'emerald',  
                                     'gold', 'silver', 'bronze', 'iron', 'diamond_2_plus', 'master_plus', 
                                     'diamond_plus', 'platinum_plus']
+        self.role_list: list[str] = ['top', 'jungle', 'mid', 'adc', 'support']
         
         # Alternative names for the elos to use in +wr.
         self.alternative_elos: dict[str, str] = {
@@ -82,19 +83,31 @@ class Bot(commands.Bot, Database):
             return (elo, elo, None)
         
     
-    def fetch_wr_with_elo(self, champ: str, elo: str, opp: str = None) -> float | None:
+    def fetch_wr_with_elo(self, champ: str, elo: str, opp: str = None, role: str = None) -> float | None:
         r"""Return the winrate of a champion in a specified elo. Return :class:`None` if website is not reachable."""
         
         if not opp:
-            if elo == 'Platinum_plus':
-                url = f'https://u.gg/lol/champions/{champ}/build'
+            if not role:
+                if elo == 'Platinum_plus':
+                    url = f'https://u.gg/lol/champions/{champ}/build'
+                else:
+                    url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}'
             else:
-                url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}'
+                if elo == 'Platinum_plus':
+                    url = f'https://u.gg/lol/champions/{champ}/build/{role}'
+                else:
+                    url = f'https://u.gg/lol/champions/{champ}/build/{role}?rank={elo}'
         else:
-            if elo == 'Platinum_plus':
-                url = f'https://u.gg/lol/champions/{champ}/build?opp={opp}'
+            if not role:
+                if elo == 'Platinum_plus':
+                    url = f'https://u.gg/lol/champions/{champ}/build?opp={opp}'
+                else:
+                    url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}&opp={opp}'
             else:
-                url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}&opp={opp}'
+                if elo == 'Platinum_plus':
+                    url = f'https://u.gg/lol/champions/{champ}/build/{role}?opp={opp}'
+                else:
+                    url = f'https://u.gg/lol/champions/{champ}/build/{role}?rank={elo}&opp={opp}'
         
         try:
             web = getreq(url, headers={'User-Agent': 'Mozilla/5.0'}).content
@@ -135,13 +148,19 @@ class Bot(commands.Bot, Database):
         
         return (win_rate, match_count)
 
-    def fetch_wr_without_elo(self, champ: str, opp:str = None) -> float | None:
+    def fetch_wr_without_elo(self, champ: str, opp: str = None, role: str = None) -> float | None:
         r"""Return the winrate of a champion without a specified elo. Return :class:`None` if website is not reachable."""
         
         if not opp:
-            url = f'https://u.gg/lol/champions/{champ}/build?rank=overall'
+            if not role:
+                url = f'https://u.gg/lol/champions/{champ}/build?rank=overall'
+            else:
+                url = f'https://u.gg/lol/champions/{champ}/build/{role}?rank=overall'
         else:
-            url = f'https://u.gg/lol/champions/{champ}/build?rank=overall&opp={opp}'
+            if not role:
+                url = f'https://u.gg/lol/champions/{champ}/build?rank=overall&opp={opp}'
+            else:
+                url = f'https://u.gg/lol/champions/{champ}/build/{role}?rank=overall&opp={opp}'
         
         try:
             web = getreq(url, headers={'User-Agent': 'Mozilla/5.0'}).content
@@ -240,6 +259,7 @@ class Bot(commands.Bot, Database):
             
             elo: str = ''
             opp: str = ''
+            role: str = ''
             champ: str = champ.capitalize()
             
             if args:
@@ -251,6 +271,9 @@ class Bot(commands.Bot, Database):
                     if arg.capitalize() in self.all_champions:
                         opp = arg
                         
+                    if arg.lower() in self.role_list:
+                        role = arg
+                        
             if champ not in self.all_champions and (champ != 'R' or champ != 'Random'):
                 await ctx.send('Invalid champion. Check +list for a list of all accepted champions.')
                 return
@@ -258,9 +281,15 @@ class Bot(commands.Bot, Database):
             #  If elo is given
             if elo != '' and champ in self.all_champions:
                 if opp:
-                    info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp)
+                    if role:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp, role=role)
+                    else:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp)
                 else:
-                    info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                    if role:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo, role=role)
+                    else:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo)
                     
                 win_rate: float | None = info[0]
                 
@@ -269,18 +298,32 @@ class Bot(commands.Bot, Database):
                     return
                 
                 if not opp:
-                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} in {role} with {info[1]} matches played.')
                 else:
-                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} in {role} with {info[1]} matches played.')
                 return
             elif elo != '' and (champ == 'R' or champ == 'Random'):
                 
                 num: int = randint(0, len(self.all_champions)-1)
                 champ: str = self.all_champions[num]
+                
                 if opp:
-                    info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp)
+                    if role:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp, role=role)
+                    else:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp)
                 else:
-                    info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                    if role:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo, role=role)
+                    else:
+                        info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                        
                 win_rate: float | None = info[0]
                 
                 if not win_rate:
@@ -288,17 +331,30 @@ class Bot(commands.Bot, Database):
                     return
                 
                 if not opp:
-                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} in {role} with {info[1]} matches played.')
                 else:
-                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} in {role} with {info[1]} matches played.')
                 return
             
             #  If elo is not given
             if elo == '' and champ in self.all_champions:
                 if opp:
-                    info = self.fetch_wr_without_elo(champ=champ, opp=opp)
+                    if role:
+                        info = self.fetch_wr_without_elo(champ=champ, opp=opp, role=role)
+                    else:
+                        info = self.fetch_wr_without_elo(champ=champ, opp=opp)
                 else:
-                    info = self.fetch_wr_without_elo(champ=champ)
+                    if role:
+                        info = self.fetch_wr_without_elo(champ=champ, role=role)
+                    else:
+                        info = self.fetch_wr_without_elo(champ=champ)
+                        
                 win_rate: float | None = info[0]
                 
                 if not win_rate:
@@ -306,9 +362,15 @@ class Bot(commands.Bot, Database):
                     return
                 
                 if not opp:
-                    await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate in {role} with {info[1]} matches played.')
                 else:
-                    await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} in {role} with {info[1]} matches played.')
                 return
             elif elo == '' and (champ == 'R' or champ == 'Random'):
                 num: int = randint(0, len(self.all_champions)-1)
@@ -326,9 +388,15 @@ class Bot(commands.Bot, Database):
                     return
                 
                 if not opp:
-                    await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate in {role} with {info[1]} matches played.')
                 else:
-                    await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} with {info[1]} matches played.')
+                    if not role:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} with {info[1]} matches played.')
+                    else:
+                        await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} in {role} with {info[1]} matches played.')
                 return
 
 
@@ -660,3 +728,8 @@ class Bot(commands.Bot, Database):
         async def winratehelp(ctx: commands.Context):
             user: discord.Member = ctx.message.author
             await user.send(wrhelpmsg)
+            
+        @self.command(aliases=['roles', 'role', 'rolelist'])
+        async def role_list(ctx: commands.Context):
+            user: discord.Member = ctx.message.author
+            await user.send(', '.join(map(str,self.role_list)))
