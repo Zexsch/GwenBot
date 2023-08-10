@@ -71,24 +71,30 @@ class Bot(commands.Bot, Database):
     
     def alternative_elo_names(self, elo: str) -> str|str:
         if elo in self.alternative_elos.get('platinum'):
-            return ('platinum_plus', 'plat+')
+            return ('platinum_plus', 'plat+', '')
         elif elo in self.alternative_elos.get('diamond2'):
-            return ('diamond_2_plus', 'd2+')
+            return ('diamond_2_plus', 'd2+', '')
         elif elo in self.alternative_elos.get('diamond'): 
-            return ('diamond_plus', 'd+')
+            return ('diamond_plus', 'd+', '')
         elif elo in self.alternative_elos.get('master'):
-            return ('master_plus', 'master+')
+            return ('master_plus', 'master+', '')
         else:
-            return (elo, elo)
+            return (elo, elo, None)
         
     
-    def fetch_wr_with_elo(self, champ: str, elo: str) -> float | None:
+    def fetch_wr_with_elo(self, champ: str, elo: str, opp: str = None) -> float | None:
         r"""Return the winrate of a champion in a specified elo. Return :class:`None` if website is not reachable."""
         
-        if elo == 'Platinum_plus':
-            url = f'https://u.gg/lol/champions/{champ}/build'
+        if not opp:
+            if elo == 'Platinum_plus':
+                url = f'https://u.gg/lol/champions/{champ}/build'
+            else:
+                url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}'
         else:
-            url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}'
+            if elo == 'Platinum_plus':
+                url = f'https://u.gg/lol/champions/{champ}/build?opp={opp}'
+            else:
+                url = f'https://u.gg/lol/champions/{champ}/build?rank={elo}&opp={opp}'
         
         try:
             web = getreq(url, headers={'User-Agent': 'Mozilla/5.0'}).content
@@ -99,7 +105,11 @@ class Bot(commands.Bot, Database):
         soup = BeautifulSoup(web, "html.parser")
         
         try:
-            win_rate: str = soup.find_all('div', {'class':'value'})[1].text
+            if not opp:
+                win_rate: str = soup.find_all('div', {'class':'value'})[1].text
+            else:
+                win_rate: str = soup.find_all('div', {'class':'value'})[0].text
+                
         except IndexError:
             self.logger.error(f'Index out of range error in +wr elo. champ={champ}, elo={elo}, url={url}')
             return
@@ -115,17 +125,23 @@ class Bot(commands.Bot, Database):
             return
         
         try:
-            match_count: str = soup.find_all('div', {'class':'value'})[5].text
+            if not opp:
+                match_count: str = soup.find_all('div', {'class':'value'})[5].text
+            else:
+                match_count: str = soup.find_all('div', {'class':'value'})[1].text
         except IndexError:
             self.logger.error(f'Index out of range error in +wr elo match_count. champ={champ}, elo={elo}, url={url}')
             return
         
         return (win_rate, match_count)
 
-    def fetch_wr_without_elo(self, champ: str) -> float | None:
+    def fetch_wr_without_elo(self, champ: str, opp:str = None) -> float | None:
         r"""Return the winrate of a champion without a specified elo. Return :class:`None` if website is not reachable."""
         
-        url = f'https://u.gg/lol/champions/{champ}/build?rank=overall'
+        if not opp:
+            url = f'https://u.gg/lol/champions/{champ}/build?rank=overall'
+        else:
+            url = f'https://u.gg/lol/champions/{champ}/build?rank=overall&opp={opp}'
         
         try:
             web = getreq(url, headers={'User-Agent': 'Mozilla/5.0'}).content
@@ -134,7 +150,10 @@ class Bot(commands.Bot, Database):
             return
         
         soup = BeautifulSoup(web, "html.parser")
-        win_rate: str = soup.find_all('div', {'class':'value'})[1].text
+        if not opp:
+            win_rate: str = soup.find_all('div', {'class':'value'})[1].text
+        else:
+            win_rate: str = soup.find_all('div', {'class':'value'})[0].text
         
         if not win_rate:
             self.logger.error("Winrate wasn't found.")
@@ -147,9 +166,12 @@ class Bot(commands.Bot, Database):
             return
         
         try:
-            match_count: str = soup.find_all('div', {'class':'value'})[5].text
+            if not opp:
+                match_count: str = soup.find_all('div', {'class':'value'})[5].text
+            else:
+                match_count: str = soup.find_all('div', {'class':'value'})[1].text
         except IndexError:
-            self.logger.error(f'Index out of range error in +wr elo match_count. champ={champ}, elo={elo}, url={url}')
+            self.logger.error(f'Index out of range error in +wr elo match_count. champ={champ}, url={url}')
             return
         
         return (win_rate, match_count)
@@ -207,76 +229,106 @@ class Bot(commands.Bot, Database):
         #
         
         @self.command(aliases=['winrate'])
-        async def wr(ctx: commands.Context, champ: str, elo: str='', *args) -> None:
+        async def wr(ctx: commands.Context, champ: str, *args) -> None:
             """Make the bot send the winrate of a given champ in a specified elo. \n
-            +wr (winrate) | (champion, r, random) (elo[optional]) \n
+            +wr (winrate) | (champion, r, random) (elo[optional]) (opposing champ[optional]) \n
             Choosing r or random as a parameter will randomly select a champion from the list of all champions. \n
             Elo is optional.
+            Opponent is optional.
+            Role is optional.
             """
             
+            elo: str = ''
+            opp: str = ''
             champ: str = champ.capitalize()
             
-            if elo != '':
-                elo_tuple = self.alternative_elo_names(elo.lower())
-                elo = elo_tuple[0]
-            
-            if elo != '' and elo not in self.elo_list:
-                await ctx.send('Invalid elo. Check +elolist for a list of all accepted elos.')
-                return
-            
+            if args:
+                for arg in args:
+                    if arg.lower() in self.elo_list or self.alternative_elo_names(arg.lower())[2] != None:
+                        elo_tuple: str = self.alternative_elo_names(arg.lower())
+                        elo = elo_tuple[0]
+                    
+                    if arg.capitalize() in self.all_champions:
+                        opp = arg
+                        
             if champ not in self.all_champions and (champ != 'R' or champ != 'Random'):
                 await ctx.send('Invalid champion. Check +list for a list of all accepted champions.')
                 return
             
             #  If elo is given
             if elo != '' and champ in self.all_champions:
-                info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                if opp:
+                    info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp)
+                else:
+                    info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                    
                 win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                if not opp:
+                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                else:
+                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} with {info[1]} matches played.')
                 return
             elif elo != '' and (champ == 'R' or champ == 'Random'):
                 
                 num: int = randint(0, len(self.all_champions)-1)
                 champ: str = self.all_champions[num]
-                
-                info = self.fetch_wr_with_elo(champ=champ, elo=elo)
+                if opp:
+                    info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp)
+                else:
+                    info = self.fetch_wr_with_elo(champ=champ, elo=elo)
                 win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                if not opp:
+                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
+                else:
+                    await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} with {info[1]} matches played.')
                 return
             
             #  If elo is not given
             if elo == '' and champ in self.all_champions:
-                info = self.fetch_wr_without_elo(champ=champ)
+                if opp:
+                    info = self.fetch_wr_without_elo(champ=champ, opp=opp)
+                else:
+                    info = self.fetch_wr_without_elo(champ=champ)
                 win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                if not opp:
+                    await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                else:
+                    await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} with {info[1]} matches played.')
                 return
             elif elo == '' and (champ == 'R' or champ == 'Random'):
                 num: int = randint(0, len(self.all_champions)-1)
                 champ: str = self.all_champions[num]
                 
-                info = self.fetch_wr_without_elo(champ=champ)
+                if opp:
+                    info = self.fetch_wr_without_elo(champ=champ, opp=opp)
+                else:
+                    info = self.fetch_wr_without_elo(champ=champ)
+                    
                 win_rate: float | None = info[0]
                 
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
-                await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                if not opp:
+                    await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
+                else:
+                    await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} with {info[1]} matches played.')
                 return
 
 
