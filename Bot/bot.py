@@ -456,8 +456,11 @@ class Bot(commands.Bot, Database):
                 try:
                     id = int(id)
                 except ValueError:
-                    await ctx.send('Invalid id...', ephemeral=True)
-                    return
+                    if len(ctx.message.mentions) == 0:
+                        await ctx.send('Invalid id...', ephemeral=True)
+                        return
+                    else:
+                        id = ctx.message.mentions[0].id
                 
                 if self.fetch_gwen_sub(id, ctx.guild.id):
                     await ctx.send('User is Subscribed.')
@@ -477,8 +480,11 @@ class Bot(commands.Bot, Database):
             try: 
                 id = int(id)
             except ValueError:
-                await ctx.send('Invalid ID...', ephemeral=True)
-                return
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
             
             if not self.fetch_gwen_sub(id, ctx.guild.id):
                 await ctx.send('User is not subscribed to GwenBot.')
@@ -500,8 +506,11 @@ class Bot(commands.Bot, Database):
             try:
                 id = int(id)
             except ValueError:
-                await ctx.send('Invalid id...', ephemeral=True)
-                return
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
             
             if not self.fetch_blacklist(id, ctx.guild.id):
                 self.add_to_blacklist(id, ctx.guild.id)
@@ -520,12 +529,15 @@ class Bot(commands.Bot, Database):
             if ctx.guild is None:
                 await ctx.send('Command must be used in a server.')
                 return
-            
+        
             try:
                 id = int(id)
             except ValueError:
-                await ctx.send('Invalid id...', ephemeral=True)
-                return
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
             
             if self.fetch_blacklist(id, ctx.guild.id):
                 self.remove_from_blacklist(id, ctx.guild.id)
@@ -554,8 +566,11 @@ class Bot(commands.Bot, Database):
             try:
                 id = int(id)
             except ValueError:
-                await ctx.send('Invalid id...', ephemeral=True)
-                return
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
             
             if self.fetch_blacklist(id, ctx.guild.id):
                 await ctx.send('User is Blacklisted.')
@@ -591,8 +606,11 @@ class Bot(commands.Bot, Database):
             try:
                 id = int(id)
             except ValueError:
-                await ctx.send('Invalid id...', ephemeral=True)
-                return
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
 
             if self.fetch_blacklist(id, ctx.guild.id):
                 await ctx.send('User is already blacklisted.')
@@ -615,12 +633,15 @@ class Bot(commands.Bot, Database):
             if ctx.guild is None:
                 await ctx.send('Command must be used in a server.')
                 return
-            
+                
             try:
                 id = int(id)
             except ValueError:
-                await ctx.send('Invalid id...', ephemeral=True)
-                return
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
 
             if not self.fetch_blacklist(id, ctx.guild.id):
                 await ctx.send('User is not Blacklisted.')
@@ -640,12 +661,15 @@ class Bot(commands.Bot, Database):
             if ctx.guild is None:
                 await ctx.send('Command must be used in a server.')
                 return
-            
+                
             try:
                 id = int(id)
             except ValueError:
-                await ctx.send('Invalid id...', ephemeral=True)
-                return
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
             
             if not self.fetch_gwen_sub(id, ctx.guild.id):
                 await ctx.send('User is not subscribed to GwenBot.')
@@ -660,7 +684,6 @@ class Bot(commands.Bot, Database):
         async def shutdown(ctx: commands.Context) -> None:
             
             self.logger.critical('Bot was forcefully shut down.')
-            print('Bot forcefully shut down.')
             
             await self.close()    
               
