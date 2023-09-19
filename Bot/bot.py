@@ -42,7 +42,7 @@ class Bot(commands.Bot, Database):
             'platinum': ['platplus', 'plat+', 'platinumplus'],
             'diamond2': ['d2+', 'd2', 'd2plus', 'diamond2', 'diamond2plus', 'diamond2+', 'diamond_2plus', 'diamond_2+'],
             'diamond': ['d+', 'dplus', 'diamondplus'],
-            'master': ['m+', 'master+', 'masterplus']
+            'master': ['m+', 'master+', 'masterplus', 'masters', 'masters+', 'mastersplus']
         }
         
         #  Regex version, not recommended
