@@ -25,6 +25,8 @@ class Bot(commands.Bot, Database):
         Has some random fun commands. 
         """
         
+        self.create_db()
+        
         intents: discord.Intents = discord.Intents.default()
         intents.message_content = True
         
@@ -61,9 +63,6 @@ class Bot(commands.Bot, Database):
         file_handler.setFormatter(formatter)
         
         self.logger.addHandler(file_handler)
-        
-        
-        self.create_db()
         
         self.add_commands()
     
@@ -229,8 +228,13 @@ class Bot(commands.Bot, Database):
             """Make the bot reply to any message containing 'Gwen' in any way. Opt-in via +gwenadd."""
             if 'gwen' in msg.content.lower():
                 if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
-                	return
+                    return
+
+                if self.fetch_quote(msg.guild.id):
+                    return
+                
                 ran_num: int = randint(0,99)
+                
                 if ran_num == 1:
                     await msg.channel.send('Gwen is... not immune?')
                     return
@@ -239,7 +243,7 @@ class Bot(commands.Bot, Database):
                     return
             elif 'gw3n' in msg.content.lower():
                 if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
-                	return
+                    return
                 await msg.channel.send('Gwen is immune. You cannot escape.')
                 return
         
@@ -416,6 +420,10 @@ class Bot(commands.Bot, Database):
                 await ctx.send('You are blacklisted from using this function.')
                 return
             
+            if self.fetch_quote(ctx.guild.id):
+                await ctx.send('The server has blocked this function.')
+                return
+            
             if not self.fetch_gwen_sub(ctx.author.id, ctx.guild.id):
                 self.add_to_gwen_sub(ctx.author.id, ctx.guild.id)
                 await ctx.send('Successfully subscribed to GwenBot.')
@@ -466,6 +474,24 @@ class Bot(commands.Bot, Database):
                     await ctx.send('User is Subscribed.')
                 else:
                     await ctx.send('User is not Subscribed.')
+        
+        @commands.has_permissions(kick_members=True)    
+        @self.command(name='quote', pass_context=True)
+        async def quote(ctx: commands.Context, id=None) -> None:
+            """Command to add/undo Quote"""
+            
+            if ctx.guild is None:
+                await ctx.send('Command must be used in a server.')
+                return
+            
+            if id == None:
+                if self.fetch_quote(ctx.guild.id):
+                    self.remove_from_quote(ctx.guild.id)
+                    await ctx.send('Gwen will now respond to chat.')
+                else:
+                    self.add_to_quote(ctx.guild.id)
+                    await ctx.send('Gwen will no longer respond to chat.')
+                    
         
         @self.command(name='modremove', pass_context=True)
         @commands.has_permissions(kick_members=True)
@@ -582,6 +608,7 @@ class Bot(commands.Bot, Database):
         #  @command.error
         #  To this command.
         
+        @quote.error
         @removesubmod.error
         @blremove.error
         @blacklist.error
