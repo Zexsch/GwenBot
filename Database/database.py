@@ -7,6 +7,7 @@ class Database():
         with sqlite3.connect('GwenUsers') as con:
             cur = con.cursor()
             try:
+                cur.execute('CREATE TABLE Question(id INTEGER PRIMARY KEY, amount INTEGER)')
                 cur.execute('CREATE TABLE Subs(id INTEGER PRIMARY KEY, user_id INTEGER, server_id INTEGER)')
                 cur.execute('CREATE TABLE Blacklist(id INTEGER PRIMARY KEY, user_id INTEGER, server_id INTEGER)')
                 cur.execute('CREATE TABLE Quote(id INTEGER PRIMARY KEY, server_id INTEGER)')
@@ -103,3 +104,21 @@ class Database():
         with sqlite3.connect('GwenUsers') as con:
             cur = con.cursor()
             cur.execute('DELETE FROM Quote WHERE server_id=?', (server_id,))
+
+    def set_amount(self, amount: int) -> None:
+        """Set the amount of question marks."""
+
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+
+            cur.execute('UPDATE Question SET amount=(?)', (amount,))
+
+    def fetch_amount(self) -> int:
+        """Fetch the amount of question marks"""
+
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+
+            res = cur.execute('SELECT amount FROM Question').fetchall()
+
+            return res
