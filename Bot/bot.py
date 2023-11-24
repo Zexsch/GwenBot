@@ -1,3 +1,4 @@
+from ast import alias
 import discord
 import logging
 
@@ -13,7 +14,7 @@ from random import randint
 # from .Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX)
 from Database.database import Database
 from .helpmsg import (helpmsg, wrhelpmsg)
-from Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX)
+from Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX, MESSAGE_CHANNEL)
 
 class Bot(commands.Bot, Database):
     def __init__(self):
@@ -66,8 +67,20 @@ class Bot(commands.Bot, Database):
         
         self.add_commands()
     
+
+    async def check_amount(self):
+        count = 0
+
+        async for _ in self.get_channel(MESSAGE_CHANNEL).history(limit=None):
+            count += 1
+        
+        count = count - 1
+        self.set_amount(count)
+
     async def on_ready(self) -> None:
+        await self.check_amount()
         self.logger.info('Bot enabled.')
+
     
     def alternative_elo_names(self, elo: str) -> str|str:
         if elo in self.alternative_elos.get('platinum'):
@@ -196,7 +209,7 @@ class Bot(commands.Bot, Database):
         
     def add_commands(self) -> None:
         """Add all discord events, commands and listeners in this."""
-        
+
         @self.listen('on_message')
         async def on_message(msg: discord.Message) -> None:
             """There can only be one on-message listener so you need to add all listen-related events in this function."""
@@ -224,7 +237,14 @@ class Bot(commands.Bot, Database):
                 await channel.send(res)
                 return
             
-            
+            """Question mark counter"""
+            if msg.channel.id == MESSAGE_CHANNEL:
+                current = self.fetch_amount()[0][0]
+                current += 1
+                print(current)
+                self.set_amount(current)
+
+
             """Make the bot reply to any message containing 'Gwen' in any way. Opt-in via +gwenadd."""
             if 'gwen' in msg.content.lower():
                 if not self.fetch_gwen_sub(msg.author.id, msg.guild.id) or msg.author == self.user:
@@ -284,6 +304,8 @@ class Bot(commands.Bot, Database):
             
             #  If elo is given
             if elo != '' and champ in self.all_champions:
+                champ = champ.lower()
+                
                 if opp:
                     if role:
                         info = self.fetch_wr_with_elo(champ=champ, elo=elo, opp=opp, role=role)
@@ -301,6 +323,8 @@ class Bot(commands.Bot, Database):
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
+                champ = champ.capitalize()
+                
                 if not opp:
                     if not role:
                         await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} with {info[1]} matches played.')
@@ -312,10 +336,13 @@ class Bot(commands.Bot, Database):
                     else:
                         await ctx.send(f'{champ} has a {win_rate}% winrate in {elo_tuple[1]} against {opp.capitalize()} in {role} with {info[1]} matches played.')
                 return
+            
             elif elo != '' and (champ == 'R' or champ == 'Random'):
                 
                 num: int = randint(0, len(self.all_champions)-1)
                 champ: str = self.all_champions[num]
+                
+                champ = champ.lower()
                 
                 if opp:
                     if role:
@@ -333,6 +360,8 @@ class Bot(commands.Bot, Database):
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
+
+                champ = champ.capitalize()            
                 
                 if not opp:
                     if not role:
@@ -348,6 +377,9 @@ class Bot(commands.Bot, Database):
             
             #  If elo is not given
             if elo == '' and champ in self.all_champions:
+                
+                champ = champ.lower()
+                
                 if opp:
                     if role:
                         info = self.fetch_wr_without_elo(champ=champ, opp=opp, role=role)
@@ -365,6 +397,8 @@ class Bot(commands.Bot, Database):
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
                 
+                champ = champ.capitalize()
+                
                 if not opp:
                     if not role:
                         await ctx.send(f'{champ} has a {win_rate}% overall winrate with {info[1]} matches played.')
@@ -376,9 +410,12 @@ class Bot(commands.Bot, Database):
                     else:
                         await ctx.send(f'{champ} has a {win_rate}% overall winrate against {opp.capitalize()} in {role} with {info[1]} matches played.')
                 return
+            
             elif elo == '' and (champ == 'R' or champ == 'Random'):
                 num: int = randint(0, len(self.all_champions)-1)
                 champ: str = self.all_champions[num]
+                
+                champ = champ.lower()
                 
                 if opp:
                     info = self.fetch_wr_without_elo(champ=champ, opp=opp)
@@ -390,6 +427,8 @@ class Bot(commands.Bot, Database):
                 if not win_rate:
                     await ctx.send('An error occured when fetching the winrate. Is u.gg down?')
                     return
+                
+                champ = champ.capitalize()
                 
                 if not opp:
                     if not role:
@@ -713,8 +752,25 @@ class Bot(commands.Bot, Database):
             self.logger.critical('Bot was forcefully shut down.')
             
             await self.close()    
-              
+
+        @self.command(pass_context=True)
+        @commands.is_owner()
+        async def set_questions(ctx: commands.Context, amount: int) -> None:
+
+            self.set_amount(amount)
+            self.logger.info('Question amount was set.')
+
+        @self.command(aliases=['cm'], pass_context=True)
+        @commands.is_owner()
+        async def count_messages(ctx: commands.Context):
+            await ctx.send('Counting messages. This can take a while.')
+            
+            await self.check_amount()
+            
+            await ctx.send('Successfully counted the Messages.')
         
+        @count_messages.error
+        @set_questions.error
         @unfuckyou.error
         @fuckyou.error
         @fuckyouremove.error
@@ -738,6 +794,12 @@ class Bot(commands.Bot, Database):
             await user.send(', '.join(map(str,self.elo_list)))
         
         #  Structure commands that send in the current chat like this and change the message.
+
+        @self.command(aliases=['question', 'amount', 'qm', 'qms', 'questionmarks', 'questionmark', '?'])
+        async def questions(ctx: commands.Context):
+            await ctx.send(f'The current amount of question marks is {self.fetch_amount()[0][0]}.')
+
+
         @self.command(aliases=['Evasion', 'jax'])
         async def evasion(ctx: commands.Context):
             await ctx.send(r'Active: Jax enters Evasion, a defensive stance, for up to 2 seconds, causing all basic attacks against him to miss. Jax also takes 25% reduced damage from all champion area of effect abilities. After 1 second, Jax can reactivate to end it immediately.')
