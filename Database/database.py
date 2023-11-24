@@ -12,7 +12,6 @@ class Database():
                 cur.execute('CREATE TABLE Blacklist(id INTEGER PRIMARY KEY, user_id INTEGER, server_id INTEGER)')
                 cur.execute('CREATE TABLE Quote(id INTEGER PRIMARY KEY, server_id INTEGER)')
             except sqlite3.OperationalError:
-                print('eee')
                 pass
 
     def fetch_gwen_sub(self, user_id: int, server_id: int) -> bool:
