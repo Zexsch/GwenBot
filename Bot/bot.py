@@ -77,6 +77,7 @@ class Bot(commands.Bot, Database):
         count = count - 1
         self.set_amount(count)
 
+
     async def on_ready(self) -> None:
         await self.check_amount()
         self.logger.info('Bot enabled.')
@@ -241,7 +242,6 @@ class Bot(commands.Bot, Database):
             if msg.channel.id == MESSAGE_CHANNEL:
                 current = self.fetch_amount()[0][0]
                 current += 1
-                print(current)
                 self.set_amount(current)
 
 
@@ -800,6 +800,28 @@ class Bot(commands.Bot, Database):
             await ctx.send(f'The current amount of question marks is {self.fetch_amount()[0][0]}.')
 
 
+        @self.command(aliases=['question_user', 'amount_user', 'qm_user', 'qms_user', 'questionmarks_user', 'questionmark_user', '?_u', '?u'])
+        async def questions_user(ctx: commands.Context, id):
+
+            try:
+                id = int(id)
+            except ValueError:
+                if len(ctx.message.mentions) == 0:
+                    await ctx.send('Invalid id...', ephemeral=True)
+                    return
+                else:
+                    id = ctx.message.mentions[0].id
+                    print(id)
+
+            count = 0
+            await ctx.send('Fetching the amount of question marks. This may take a while.')
+            async for message in self.get_channel(MESSAGE_CHANNEL).history(limit=None):
+                print(message.author.id)
+                if message.author.id == id:
+                    count += 1
+
+            await ctx.send(f'The current amount of question marks by <@{id}> is {count}.')
+
         @self.command(aliases=['Evasion', 'jax'])
         async def evasion(ctx: commands.Context):
             await ctx.send(r'Active: Jax enters Evasion, a defensive stance, for up to 2 seconds, causing all basic attacks against him to miss. Jax also takes 25% reduced damage from all champion area of effect abilities. After 1 second, Jax can reactivate to end it immediately.')
@@ -845,3 +867,5 @@ class Bot(commands.Bot, Database):
         async def role_list(ctx: commands.Context):
             user: discord.Member = ctx.message.author
             await user.send(', '.join(map(str,self.role_list)))
+
+        
