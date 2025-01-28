@@ -1,28 +1,33 @@
 from ast import alias
 import discord
 import logging
+import gc
+import datetime
 
 from discord.ext import commands
+from discord.ext import tasks
 from bs4 import BeautifulSoup
 from requests import get as getreq
 from requests.exceptions import RequestException
 from json import loads as loadsjson
 from random import randint
+from openai import OpenAI
 # from re import findall
 
 # from .Database.database import Database
 # from .Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX)
 from Database.database import Database
 from .helpmsg import (helpmsg, wrhelpmsg)
-from Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX, MESSAGE_CHANNEL)
+from Config.config import (LOL_VERSION, OWNER_ID, DEFAULT_CHANNEL, PREFIX, MESSAGE_CHANNEL, DEEPSEEK_TOKEN)
 
-class Bot(commands.Bot, Database):
+class Bot(commands.Bot, Database, commands.Cog):
     def __init__(self):
         """
         Create an instance of the bot then do the run('TOKEN') command, replace TOKEN with your discord bot token. 
         League of Legends Gwen-themed discord bot. 
         Fetches the winrate of any given LOL champion via web scraping on u.gg 
         Also replies to any message containing 'Gwen' in any way [optional, opt-in] 
+        Has Deepseek reasoning integration
         Has some random fun commands. 
         """
         
@@ -64,10 +69,16 @@ class Bot(commands.Bot, Database):
         file_handler.setFormatter(formatter)
         
         self.logger.addHandler(file_handler)
+
+        
         
         self.add_commands()
-    
 
+        # self.deepseek_client = OpenAI(api_key=DEEPSEEK_TOKEN, base_url="https://api.deepseek.com")
+
+        
+    
+        
     async def check_amount(self):
         count = 0
 
@@ -77,10 +88,36 @@ class Bot(commands.Bot, Database):
         count = count - 1
         self.set_amount(count)
 
-
+    
     async def on_ready(self) -> None:
         await self.check_amount()
+        self.mudae_ping.start()
         self.logger.info('Bot enabled.')
+
+    utc = datetime.timezone.utc
+    
+    times = [
+        datetime.time(hour=2, tzinfo=utc),
+        datetime.time(hour=4, tzinfo=utc),
+        datetime.time(hour=6, tzinfo=utc),
+        datetime.time(hour=8, tzinfo=utc),
+        datetime.time(hour=10, tzinfo=utc),
+        datetime.time(hour=12, tzinfo=utc),
+        datetime.time(hour=14, tzinfo=utc),
+        datetime.time(hour=16, tzinfo=utc),
+        datetime.time(hour=18, tzinfo=utc),
+        datetime.time(hour=20, tzinfo=utc),
+        datetime.time(hour=22, tzinfo=utc),
+        datetime.time(hour=00, tzinfo=utc)
+    ]
+
+
+    @tasks.loop(time=times)
+    async def mudae_ping(self):
+        await self.wait_until_ready()
+        channel = self.get_channel(1320437220116791406)
+        await channel.send("<@&1320528669684535358> Your mudae claim is up, disgusting addict weeb")
+        
 
     
     def alternative_elo_names(self, elo: str) -> str|str:
@@ -207,6 +244,8 @@ class Bot(commands.Bot, Database):
             return
         
         return (win_rate, match_count)
+
+        
         
     def add_commands(self) -> None:
         """Add all discord events, commands and listeners in this."""
@@ -214,6 +253,30 @@ class Bot(commands.Bot, Database):
         @self.listen('on_message')
         async def on_message(msg: discord.Message) -> None:
             """There can only be one on-message listener so you need to add all listen-related events in this function."""
+
+
+            """Question mark counter"""
+            if msg.channel.id == MESSAGE_CHANNEL:
+
+                if msg.content != '?':
+                    channel = self.get_channel(410517986256879618)
+                    if not '@' in msg.content:
+                        await channel.send(f'<@341238409311944705> <@281791015411646464> Somebody did a little fucky wuckie >.<!! A small oopsie woopsie uwu! Someone dared ruin the ? chain nya~!!! <@{msg.author.id}> what have you done!! (⁄ ⁄•⁄ω⁄•⁄ ⁄) They dared send "{msg.content}" in our holy channel nya!')
+                    else:
+                        await channel.send(f'<@341238409311944705> <@281791015411646464> Somebody did a little fucky wuckie >.<!! A small oopsie woopsie uwu! Someone dared ruin the ? chain nya~!!! <@{msg.author.id}> what have you done!! (⁄ ⁄•⁄ω⁄•⁄ ⁄) They dared use an "@" in our holy channel nya!')
+                    return
+
+                if self.fetch_latest_user()[0] == msg.author.id:
+                    channel = self.get_channel(410517986256879618)
+                    await channel.send(f'<@341238409311944705> <@281791015411646464> Somebody did a little fucky wuckie >.<!! A small oopsie woopsie uwu! Someone dared ruin the ? chain nya~!!! <@{msg.author.id}> what have you done!! (⁄ ⁄•⁄ω⁄•⁄ ⁄) They dared send two ?s in a row nya!')
+                    return
+                
+                self.set_latest_user(msg.author.id)
+
+                current = self.fetch_amount()[0][0]
+                current += 1
+                self.set_amount(current)
+
             
             if PREFIX in msg.content:
                 return
@@ -238,12 +301,6 @@ class Bot(commands.Bot, Database):
                 await channel.send(res)
                 return
             
-            """Question mark counter"""
-            if msg.channel.id == MESSAGE_CHANNEL:
-                current = self.fetch_amount()[0][0]
-                current += 1
-                self.set_amount(current)
-
 
             """Make the bot reply to any message containing 'Gwen' in any way. Opt-in via +gwenadd."""
             if 'gwen' in msg.content.lower():
@@ -811,16 +868,43 @@ class Bot(commands.Bot, Database):
                     return
                 else:
                     id = ctx.message.mentions[0].id
-                    print(id)
 
             count = 0
             await ctx.send('Fetching the amount of question marks. This may take a while.')
             async for message in self.get_channel(MESSAGE_CHANNEL).history(limit=None):
-                print(message.author.id)
                 if message.author.id == id:
                     count += 1
 
             await ctx.send(f'The current amount of question marks by <@{id}> is {count}.')
+            
+        @self.command(aliases=['lb'])
+        async def leaderboard(ctx: commands.Context):
+            await ctx.send('Fetching the leaderboard. This may take a while.')
+            user_dict: dict[int, int] = {}
+
+            async for message in self.get_channel(MESSAGE_CHANNEL).history(limit=None):
+                if not (message.author.id in user_dict.keys()):
+                    user_dict[message.author.id] = 1
+                else:
+                    user_dict[message.author.id] += 1
+
+            ordered_dict = {k: v for k, v in sorted(user_dict.items(), key=lambda item: item[1], reverse=True)}
+            del user_dict
+
+            user_list = []
+            count = 0
+            for key, value in ordered_dict.items():
+                count += 1
+                user_list.append([(await self.fetch_user(key)).display_name, value])
+
+                if count >= 10:
+                    break
+            
+            del ordered_dict
+            await ctx.send(f"""1. {user_list[0][0]} with {user_list[0][1]} question marks sent.\n2. {user_list[1][0]} with {user_list[1][1]} question marks sent.\n3. {user_list[2][0]} with {user_list[2][1]} question marks sent.\n4. {user_list[3][0]} with {user_list[3][1]} question marks sent.\n5. {user_list[4][0]} with {user_list[4][1]} question marks sent.\n6. {user_list[5][0]} with {user_list[5][1]} question marks sent.\n7. {user_list[6][0]} with {user_list[6][1]} question marks sent.\n8. {user_list[7][0]} with {user_list[7][1]} question marks sent.\n9. {user_list[8][0]} with {user_list[8][1]} question marks sent.\n10. {user_list[9][0]} with {user_list[9][1]} question marks sent.""")
+            
+            del user_list
+            gc.collect()
 
         @self.command(aliases=['Evasion', 'jax'])
         async def evasion(ctx: commands.Context):
@@ -846,7 +930,7 @@ class Bot(commands.Bot, Database):
             
         @self.command(aliases=['george','George','Sylas'])
         async def sylas(ctx: commands.Context):
-            await ctx.send('Sylas pressed W.')
+            await ctx.send('Sylas pressed W. https://imgur.com/IHyk5hl')
             
         @self.command(aliases=['Version', 'checkver', 'patch'])
         async def version(ctx: commands.Context):
@@ -868,4 +952,37 @@ class Bot(commands.Bot, Database):
             user: discord.Member = ctx.message.author
             await user.send(', '.join(map(str,self.role_list)))
 
+        @self.command(aliases=["Wis'adel", 'w', 'W', 'balans'])
+        async def wisadel(ctx: commands.Context):
+            await ctx.send(r"Immediately summons 2 Shadows of Revenant within attack range (max 3, persists after the skill ends); ATK +180%, attack interval increases significantly, ATK increases to 220% when attacking, splash damage radius expands, and 1st Talent activation chance increases to 100%. Skill activation grants 6 ammo and the skill ends when all ammo are used (Can manually deactivate skill)")
+
         
+
+        @self.command()
+        async def get_time(ctx: commands.Context):
+            await ctx.send(f"current time is {datetime.datetime.now()} , times are {times[0]}")
+
+        @self.command()
+        async def lana(ctx: commands.Context):
+            await ctx.send("https://media.discordapp.net/attachments/1320437220116791406/1321894179646734366/IMG_6786.png?ex=676ee564&is=676d93e4&hm=f7bb76b71252e93f59dfc8a6508dfbc8218b35775c332561cd8a68235a43fbfa&=&format=webp&quality=lossless&width=814&height=793")
+
+
+
+        #  Deepseek reasoning integration
+        """
+        @self.command(aliases=["deepseek", "seek"])
+        async def gwenseek(ctx: commands.Context, message: str) -> None:
+            response = self.deepseek_client.chat.completions.create(
+                model="deepseek-reasoner",
+                messages = [
+                    {"role": "system", "content": "You are a helpful assistant"},
+                    {"role": "user", "content": message},
+                ],
+                max_tokens=1024,
+                temperature=0.7,
+                stream=False
+            )
+
+            await ctx.send(response)
+        """
+
