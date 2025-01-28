@@ -4,3 +4,4 @@ DEFAULT_CHANNEL: int = 123  # Default channel that the sendshit 'command' sends 
 MESSAGE_CHANNEL: int = 123  # Default channel that counts messages.
 PREFIX: str = '+'  # Bot prefix.
 TOKEN: str = 'discord token'  # Change to your bot token.
+DEEPSEEK_TOKEN: str = '123'  # Change to your deepseek API token. 
