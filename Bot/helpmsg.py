@@ -11,6 +11,11 @@ All commands are case-sensitive.
 +rolelist (roles) | ()
 +patch (version, checkver) | ()  -  Gives the current league patch that GwenBot uses. Any champ added after this patch will not work with GwenBot.
 
+Deepseek integration:
+gwenseek (deepseek, seek) | (Your entire message) - Uses the deepseek reasoner AI.
+gwenseekbasic (deepseekbasic, seekbasic, gwenseekb) | (Your entire message) - Uses the deepseek non-reasoner (chat) AI.
+Both remember the 5 previous conversations.
+
 Fun commands:
 +evasion (jax)
 +gwen (g, immune)
