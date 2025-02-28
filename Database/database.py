@@ -147,12 +147,19 @@ class Database():
             
             cur.execute('INSERT INTO Gwenseek(user_id, user_message, reasoning_content) VALUES(?,?,?)', (user_id, user_message, reasoning_content))
             
-    def clear_context_ds(self, user_id: str) -> None:
+    def clear_context_ds(self, user_id: int) -> None:
         
         with sqlite3.connect('GwenUsers') as con:
             cur = con.cursor()
             
             cur.execute('DELETE FROM Gwenseek WHERE user_id=?', (user_id,))
+            
+    def delete_oldest_context_ds(self, user_id: int) -> None:
+        
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+            
+            cur.execute('DELETE FROM Gwenseek WHERE id = (SELECT MIN(id) FROM Gwenseek WHERE user_id = ?)', (user_id,))
     
     def fetch_user_count_ds(self, user_id: int) -> None:
         
