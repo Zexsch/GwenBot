@@ -1047,16 +1047,31 @@ class Bot(commands.Bot, Database, commands.Cog):
             await ctx.send("Gwen is thinking...")
             response = ""
             message = ' '.join(map(str, message))
+            
+            full_messages = [{"role": "system", "content": "You are a helpful assistant. You are the champion 'Gwen' from League of Legends. Refer to yourself as 'Gwen'. Don't Roleplay too much as Gwen, just keep in mind that you are Gwen. The user is not Gwen. ALL replies must be 2000 or less characters in length."},
+                            {"role": "user", "content": message}]
+            
+            context_count: int = self.fetch_user_count_ds(ctx.message.author.id)[0]
+            
+            if context_count >= 6:
+                await ctx.send("I will be forgetting all previous conversations. Snip Snip!")
+                self.clear_context_ds(ctx.message.author.id)
+            
+            previous_context = self.fetch_context_ds(ctx.message.author.id)
+
+            for i in previous_context:
+                full_messages.append({"role": "assistant", "content":i[3]})
+                full_messages.append({"role": "user", "content": i[2]})
+            
             response = await self.deepseek_client.chat.completions.create(
                 model=f"deepseek-{model}",
-                messages = [
-                    {"role": "system", "content": "You are a helpful assistant. You are the champion 'Gwen' from League of Legends. Refer to yourself as 'Gwen'. Don't Roleplay too much as Gwen, just keep in mind that you are Gwen. The user is not Gwen. ALL replies must be 2000 or less characters in length."},
-                    {"role": "user", "content": message},
-                ],
+                messages = full_messages,
                 max_tokens=1024,
                 temperature=0.7,
                 stream=False
             )
+            
+            self.add_context_ds(ctx.message.author.id, message, response.choices[0].message.content)
 
             await ctx.send(response.choices[0].message.content + f"\n ||<@{ctx.message.author.id}>||")
             response = ""
