@@ -11,7 +11,7 @@ from requests import get as getreq
 from requests.exceptions import RequestException
 from json import loads as loadsjson
 from random import randint
-from openai import OpenAI
+from openai import AsyncOpenAI
 # from re import findall
 
 # from .Database.database import Database
@@ -74,7 +74,9 @@ class Bot(commands.Bot, Database, commands.Cog):
         
         self.add_commands()
 
-        # self.deepseek_client = OpenAI(api_key=DEEPSEEK_TOKEN, base_url="https://api.deepseek.com")
+        self.deepseek_client = AsyncOpenAI(api_key=DEEPSEEK_TOKEN, base_url="https://api.deepseek.com")
+
+        self.ugg_div_values = ['shinggo', 'good', 'okay', 'volxd', 'meh']
 
         
     
@@ -166,16 +168,22 @@ class Bot(commands.Bot, Database, commands.Cog):
             return
         
         soup = BeautifulSoup(web, "html.parser")
-        
-        try:
-            if not opp:
-                win_rate: str = soup.find_all('div', {'class':'value'})[1].text
-            else:
-                win_rate: str = soup.find_all('div', {'class':'value'})[0].text
-                
-        except IndexError:
-            self.logger.error(f'Index out of range error in +wr elo. champ={champ}, elo={elo}, url={url}')
-            return
+
+        win_rate: str = ""
+        repeat_count: int = 0
+
+        while not win_rate:
+            if repeat_count >= 5:
+                self.logger.error(f'Index out of range error in +wr elo win_rate. champ={champ}, elo={elo}, url={url}')
+                break
+
+            try:
+                win_rate: str = soup.find('div', {'class':f'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold {self.ugg_div_values[repeat_count]}-tier'}).text
+
+            except:
+                repeat_count += 1
+            
+            else: break
         
         if not win_rate:
             self.logger.error("Winrate wasn't found.")
@@ -183,15 +191,40 @@ class Bot(commands.Bot, Database, commands.Cog):
         
         try:
             win_rate = float(win_rate.rstrip(win_rate[-1]))
-        except ValueError:
-            self.logger.error('Winrate fetched was not a float.')
-            return
+        except: pass
+        
+        if not isinstance(win_rate, float):
+            win_rate: str = ""
+            repeat_count: int = 4
+
+            while not win_rate:
+                if repeat_count <= -1:
+                    self.logger.error(f'Index out of range error in +wr elo win_rate. champ={champ}, elo={elo}, url={url}')
+                    break
+
+                try:
+                    win_rate: str = soup.find('div', {'class':f'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold {self.ugg_div_values[repeat_count]}-tier'}).text
+                    
+                    if not isinstance(win_rate, float):
+                        win_rate: str = soup.find_all('div', {'class':f'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold {self.ugg_div_values[repeat_count]}-tier'})[1].text
+
+                except:
+                    repeat_count -= 1
+
+                else: break
+        
+        if not isinstance(win_rate, float):
+            try:
+                win_rate = float(win_rate.rstrip(win_rate[-1]))
+            except ValueError:
+                self.logger.error(f'Winrate fetched was not a float. Given winrate: {win_rate}')
+                return
         
         try:
             if not opp:
-                match_count: str = soup.find_all('div', {'class':'value'})[5].text
+                match_count: str = soup.find_all('div', {'class':'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold'})[3].text
             else:
-                match_count: str = soup.find_all('div', {'class':'value'})[1].text
+                match_count: str = soup.find('div', {'class':'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold'}).text
         except IndexError:
             self.logger.error(f'Index out of range error in +wr elo match_count. champ={champ}, elo={elo}, url={url}')
             return
@@ -219,10 +252,22 @@ class Bot(commands.Bot, Database, commands.Cog):
             return
         
         soup = BeautifulSoup(web, "html.parser")
-        if not opp:
-            win_rate: str = soup.find_all('div', {'class':'value'})[1].text
-        else:
-            win_rate: str = soup.find_all('div', {'class':'value'})[0].text
+
+        win_rate: str = ""
+        repeat_count: int = 0
+
+        while not win_rate:
+            if repeat_count >= 5:
+                self.logger.error(f'Index out of range error in +wr elo win_rate. champ={champ}, url={url}')
+                break
+
+            try:
+                win_rate: str = soup.find('div', {'class':f'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold {self.ugg_div_values[repeat_count]}-tier'}).text
+
+            except:
+                repeat_count += 1
+            
+            else: break
         
         if not win_rate:
             self.logger.error("Winrate wasn't found.")
@@ -230,15 +275,39 @@ class Bot(commands.Bot, Database, commands.Cog):
         
         try:
             win_rate = float(win_rate.rstrip(win_rate[-1]))
-        except ValueError:
-            self.logger.error('Winrate fetched was not a float.')
-            return
-        
+        except: pass
+
+        if not isinstance(win_rate, float):
+            win_rate: str = ""
+            repeat_count: int = 4
+
+            while not win_rate:
+                if repeat_count <= -1:
+                    self.logger.error(f'Index out of range error in +wr elo win_rate. champ={champ}, url={url}')
+                    break
+    
+                try:
+                    win_rate: str = soup.find('div', {'class':f'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold {self.ugg_div_values[repeat_count]}-tier'}).text
+                    
+                    if not isinstance(win_rate, float):
+                        win_rate: str = soup.find_all('div', {'class':f'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold {self.ugg_div_values[repeat_count]}-tier'})[1].text
+    
+                except:
+                    repeat_count -= 1
+                
+                else: break
+        if not isinstance(win_rate, float):
+            try:
+                win_rate = float(win_rate.rstrip(win_rate[-1]))
+            except ValueError:
+                self.logger.error(f'Winrate fetched was not a float. Given winrate: {win_rate}')
+                return
+
         try:
             if not opp:
-                match_count: str = soup.find_all('div', {'class':'value'})[5].text
+                match_count: str = soup.find_all('div', {'class':'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold'})[3].text
             else:
-                match_count: str = soup.find_all('div', {'class':'value'})[1].text
+                match_count: str = soup.find('div', {'class':'text-[20px] max-sm:text-[16px] max-xs:text-[14px] font-extrabold'}).text
         except IndexError:
             self.logger.error(f'Index out of range error in +wr elo match_count. champ={champ}, url={url}')
             return
@@ -960,22 +1029,28 @@ class Bot(commands.Bot, Database, commands.Cog):
 
         @self.command()
         async def get_time(ctx: commands.Context):
-            await ctx.send(f"current time is {datetime.datetime.now()} , times are {times[0]}")
+            await ctx.send(f"current time is {datetime.datetime.now()} , times are {self.times[0]}")
 
         @self.command()
         async def lana(ctx: commands.Context):
             await ctx.send("https://media.discordapp.net/attachments/1320437220116791406/1321894179646734366/IMG_6786.png?ex=676ee564&is=676d93e4&hm=f7bb76b71252e93f59dfc8a6508dfbc8218b35775c332561cd8a68235a43fbfa&=&format=webp&quality=lossless&width=814&height=793")
 
 
+        @self.command()
+        async def zex(ctx: commands.Context):
+            await ctx.send("https://media.discordapp.net/attachments/1320437220116791406/1338656615619887145/Screenshot_20250210_152123_Discord.jpg?ex=67abe0a0&is=67aa8f20&hm=27c2301565f3995aaec637387d3abf946d664bfa7880e7864215e5b266c21dad&=&format=webp")
+
 
         #  Deepseek reasoning integration
-        """
-        @self.command(aliases=["deepseek", "seek"])
-        async def gwenseek(ctx: commands.Context, message: str) -> None:
-            response = self.deepseek_client.chat.completions.create(
-                model="deepseek-reasoner",
+        
+        async def gwenseekfunc(ctx: commands.Context, model: str, message: (str)) -> None:
+            await ctx.send("Gwen is thinking...")
+            response = ""
+            message = ' '.join(map(str, message))
+            response = await self.deepseek_client.chat.completions.create(
+                model=f"deepseek-{model}",
                 messages = [
-                    {"role": "system", "content": "You are a helpful assistant"},
+                    {"role": "system", "content": "You are a helpful assistant. You are the champion 'Gwen' from League of Legends. Refer to yourself as 'Gwen'. Don't Roleplay too much as Gwen, just keep in mind that you are Gwen. The user is not Gwen. ALL replies must be 2000 or less characters in length."},
                     {"role": "user", "content": message},
                 ],
                 max_tokens=1024,
@@ -983,6 +1058,16 @@ class Bot(commands.Bot, Database, commands.Cog):
                 stream=False
             )
 
-            await ctx.send(response)
-        """
+            await ctx.send(response.choices[0].message.content + f"\n ||<@{ctx.message.author.id}>||")
+            response = ""
+            
+            
+        @self.command(aliases=["deepseek", "seek"])
+        async def gwenseek(ctx: commands.Context, *message: (str)) -> None:
+            await gwenseekfunc(ctx, "reasoner", message)
+            
+        @self.command(aliases=["deepseekbasic", "seekbasic", "gwenseekb"])
+        async def gwenseekbasic(ctx: commands.Context, *message: (str)) -> None:
+            await gwenseekfunc(ctx, "chat", message)
+        
 
