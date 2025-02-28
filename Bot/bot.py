@@ -1048,20 +1048,21 @@ class Bot(commands.Bot, Database, commands.Cog):
             response = ""
             message = ' '.join(map(str, message))
             
-            full_messages = [{"role": "system", "content": "You are a helpful assistant. You are the champion 'Gwen' from League of Legends. Refer to yourself as 'Gwen'. Don't Roleplay too much as Gwen, just keep in mind that you are Gwen. The user is not Gwen. ALL replies must be 2000 or less characters in length."},
-                            {"role": "user", "content": message}]
+            full_messages = []
             
             context_count: int = self.fetch_user_count_ds(ctx.message.author.id)[0]
             
-            if context_count >= 6:
-                await ctx.send("I will be forgetting all previous conversations. Snip Snip!")
-                self.clear_context_ds(ctx.message.author.id)
+            if context_count >= 5:
+                self.delete_oldest_context_ds(ctx.message.author.id)
             
             previous_context = self.fetch_context_ds(ctx.message.author.id)
 
             for i in previous_context:
                 full_messages.append({"role": "assistant", "content":i[3]})
                 full_messages.append({"role": "user", "content": i[2]})
+            
+            full_messages.append({"role": "system", "content": "You are a helpful assistant. You are the champion 'Gwen' from League of Legends. Refer to yourself as 'Gwen'. Don't Roleplay too much as Gwen, just keep in mind that you are Gwen. The user is not Gwen. ALL replies must be 2000 or less characters in length."})
+            full_messages.append({"role": "user", "content": message})
             
             response = await self.deepseek_client.chat.completions.create(
                 model=f"deepseek-{model}",
@@ -1084,5 +1085,9 @@ class Bot(commands.Bot, Database, commands.Cog):
         @self.command(aliases=["deepseekbasic", "seekbasic", "gwenseekb"])
         async def gwenseekbasic(ctx: commands.Context, *message: (str)) -> None:
             await gwenseekfunc(ctx, "chat", message)
-        
+            
+        @self.command(aliases=["ch", "clear"])
+        async def clearhistory(ctx: commands.Context) -> None:
+            self.clear_context_ds(ctx.message.author.id)
+            await ctx.send("Cleared your Gwenseek history, snip snip!")
 
