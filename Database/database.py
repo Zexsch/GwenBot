@@ -1,4 +1,5 @@
 import sqlite3
+from typing import List
 
 class Database():
     def create_db(self) -> None:
@@ -7,7 +8,8 @@ class Database():
         with sqlite3.connect('GwenUsers') as con:
             cur = con.cursor()
             try:
-                cur.execute('CREATE TABLE Question(id INTEGER PRIMARY KEY, amount INTEGER)')
+                cur.execute('CREATE TABLE Gwenseek(id INTEGER PRIMARY KEY, user_id INTEGER, user_message TEXT, reasoning_content TEXT)')
+                cur.execute('CREATE TABLE Question(id INTEGER PRIMARY KEY, amount INTEGER, latest_user INTEGER)')
                 cur.execute('CREATE TABLE Subs(id INTEGER PRIMARY KEY, user_id INTEGER, server_id INTEGER)')
                 cur.execute('CREATE TABLE Blacklist(id INTEGER PRIMARY KEY, user_id INTEGER, server_id INTEGER)')
                 cur.execute('CREATE TABLE Quote(id INTEGER PRIMARY KEY, server_id INTEGER)')
@@ -121,3 +123,47 @@ class Database():
             res = cur.execute('SELECT amount FROM Question').fetchall()
 
             return res
+        
+    def set_latest_user(self, user_id) -> None:
+
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+
+            cur.execute('UPDATE Question SET latest_user=(?)', (user_id,))
+
+    def fetch_latest_user(self) -> int:
+
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+
+            return cur.execute('SELECT latest_user FROM Question').fetchone()
+        
+    # Deepseek integration
+    
+    def add_context_ds(self, user_id: int, user_message: str, reasoning_content: str) -> None:
+        
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+            
+            cur.execute('INSERT INTO Gwenseek(user_id, user_message, reasoning_content) VALUES(?,?,?)', (user_id, user_message, reasoning_content))
+            
+    def clear_context_ds(self, user_id: str) -> None:
+        
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+            
+            cur.execute('DELETE FROM Gwenseek WHERE user_id=?', (user_id,))
+    
+    def fetch_user_count_ds(self, user_id: int) -> None:
+        
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+            
+            return cur.execute('SELECT COUNT(*) FROM Gwenseek WHERE user_id=?', (user_id,)).fetchone()
+    
+    def fetch_context_ds(self, user_id: int) -> None:
+        
+        with sqlite3.connect('GwenUsers') as con:
+            cur = con.cursor()
+            
+            return cur.execute('SELECT * FROM Gwenseek WHERE user_id=? ORDER BY id', (user_id,)).fetchall()
