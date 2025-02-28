@@ -1048,7 +1048,7 @@ class Bot(commands.Bot, Database, commands.Cog):
             response = ""
             message = ' '.join(map(str, message))
             
-            full_messages = []
+            full_messages = [{"role": "system", "content": "You are a helpful assistant. You are the champion 'Gwen' from League of Legends. Refer to yourself as 'Gwen'. Don't Roleplay too much as Gwen, just keep in mind that you are Gwen. The user is not Gwen. ALL replies must be 2000 or less characters in length."}]
             
             context_count: int = self.fetch_user_count_ds(ctx.message.author.id)[0]
             
@@ -1058,10 +1058,9 @@ class Bot(commands.Bot, Database, commands.Cog):
             previous_context = self.fetch_context_ds(ctx.message.author.id)
 
             for i in previous_context:
-                full_messages.append({"role": "assistant", "content":i[3]})
                 full_messages.append({"role": "user", "content": i[2]})
-            
-            full_messages.append({"role": "system", "content": "You are a helpful assistant. You are the champion 'Gwen' from League of Legends. Refer to yourself as 'Gwen'. Don't Roleplay too much as Gwen, just keep in mind that you are Gwen. The user is not Gwen. ALL replies must be 2000 or less characters in length."})
+                full_messages.append({"role": "assistant", "content":i[3]})
+
             full_messages.append({"role": "user", "content": message})
             
             response = await self.deepseek_client.chat.completions.create(
