@@ -8,3 +8,5 @@ Change LOL_VERSION in Config/config.py to the latest patch.
 Change OWNER_ID in Config/config.py to your own discord user ID.
 
 Change the TOKEN string in Config/config.py to your discord bot token.
+
+Change the DEEPSEEK_TOKEN string in Config/config.py to your deepseek API token.
